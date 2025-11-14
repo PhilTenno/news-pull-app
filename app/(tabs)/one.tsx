@@ -312,14 +312,14 @@ const styles = StyleSheet.create({
   dateButton: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#e6f0ff',
+    backgroundColor: '#fff',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#b0c8ff',
+    borderColor: '#ccc',
   },
   dateButtonText: {
     fontSize: 13,
-    color: '#0056d6',
+    color: '#333',
     fontWeight: '500',
   },  
   htmlTextInput: {
