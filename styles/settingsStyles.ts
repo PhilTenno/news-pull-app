@@ -22,6 +22,13 @@ export const settingsStyles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
   },
+  pickerContainer: {
+      borderWidth: 1,
+      borderColor: '#ccc',
+      borderRadius: 6,
+      backgroundColor: '#fff',
+      marginBottom: 12,
+    },  
   removeButton: {
     marginLeft: 8,
     paddingHorizontal: 10,
