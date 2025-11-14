@@ -1,13 +1,6 @@
 // app/(tabs)/one.tsx
-import {
-  ArchiveConfig,
-  loadWebsites,
-  WebsiteConfig,
-} from '@/storage/settingsStorage';
-import { globalStyles } from '@/styles/globalStyles';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,14 +11,19 @@ import {
 
 import { AppDropdown } from '@/components/AppDropdown';
 import { ArticleToolbar } from '@/components/ArticleToolbar';
+import {
+  ArticleDraft,
+  loadDraft,
+  saveDraft,
+} from '@/storage/articleDraftStorage';
+import {
+  ArchiveConfig,
+  loadWebsites,
+  WebsiteConfig,
+} from '@/storage/settingsStorage';
+import { globalStyles } from '@/styles/globalStyles';
 import QuillEditor from 'react-native-cn-quill';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-
-type ArticleDraft = {
-  title: string;
-  contentHtml: string;
-  publishedAt: string | null; // Veröffentlichungsdatum (ISO-String) oder null
-};
 
 export default function ArticleScreen() {
   const [websites, setWebsites] = useState<WebsiteConfig[]>([]);
@@ -45,16 +43,27 @@ export default function ArticleScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
 
-  const _editor = useRef<QuillEditor>(null);
+  // Wichtig: any statt QuillEditor-Typ, um TS-Fehler zu vermeiden
+  const _editor = useRef<any>(null);
 
+  // Merkt den zuletzt geladenen Draft (für Skip-Logic beim Speichern)
+  const lastLoadedDraftRef = useRef<string | null>(null);
+
+  // Optional: Debounce für Autosave — Typ portable mit ReturnType<typeof setTimeout>
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Einstellungen (Websites/Archive) laden
   useEffect(() => {
     const loadSettings = async () => {
       const storedWebsites = await loadWebsites();
       setWebsites(storedWebsites);
 
       const firstWebsite = storedWebsites[0] ?? null;
-      setSelectedWebsiteId(firstWebsite?.id ?? null);
-      setSelectedArchiveId(firstWebsite?.archives[0]?.id ?? null);
+      const firstWebsiteId = firstWebsite?.id ?? null;
+      const firstArchiveId = firstWebsite?.archives[0]?.id ?? null;
+
+      setSelectedWebsiteId(firstWebsiteId);
+      setSelectedArchiveId(firstArchiveId);
 
       setLoading(false);
     };
@@ -62,26 +71,108 @@ export default function ArticleScreen() {
     loadSettings();
   }, []);
 
-  if (loading) {
-    return (
-      <View style={globalStyles.screenContainer}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
+  // Draft für aktuelle Website + Archiv laden
+  useEffect(() => {
+    const loadCurrentDraft = async () => {
+      if (!selectedWebsiteId || !selectedArchiveId) {
+        return;
+      }
 
+      try {
+        const existing = await loadDraft(selectedWebsiteId, selectedArchiveId);
+
+        const toSet: ArticleDraft =
+          existing ?? {
+            title: '',
+            contentHtml: '',
+            publishedAt: null,
+          };
+
+        setDraft(toSet);
+        setRawHtml(toSet.contentHtml ?? '');
+        setIsHtmlMode(false);
+
+        // Genauso merken, wie geladen (als JSON)
+        lastLoadedDraftRef.current = JSON.stringify(toSet);
+
+        console.log(
+          '[UI] loaded draft for',
+          selectedWebsiteId,
+          selectedArchiveId,
+          existing ? 'FOUND' : 'NEW'
+        );
+      } catch (err) {
+        console.error('Error loading draft:', err);
+      }
+    };
+
+    loadCurrentDraft();
+  }, [selectedWebsiteId, selectedArchiveId]);
+
+  // Draft automatisch speichern (debounced) für aktuelle Website + Archiv
+  useEffect(() => {
+    if (!selectedWebsiteId || !selectedArchiveId) {
+      return;
+    }
+
+    const draftJson = JSON.stringify(draft);
+
+    // Wenn Draft identisch zum zuletzt geladenen → nicht speichern
+    if (lastLoadedDraftRef.current === draftJson) {
+      return;
+    }
+
+    const persistDraft = async () => {
+      try {
+        console.log(
+          '[UI] persistDraft for',
+          selectedWebsiteId,
+          selectedArchiveId,
+          'title=',
+          draft.title,
+          'len=',
+          draft.contentHtml?.length
+        );
+        await saveDraft(selectedWebsiteId, selectedArchiveId, draft);
+
+        // Nach erfolgreichem Speichern Zustand merken
+        lastLoadedDraftRef.current = draftJson;
+      } catch (err) {
+        console.error('Persist draft failed', err);
+      }
+    };
+
+    // Debounce: 800ms nach letzter Änderung speichern
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current as ReturnType<typeof setTimeout>);
+    }
+    saveTimeoutRef.current = setTimeout(persistDraft, 800);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current as ReturnType<typeof setTimeout>);
+      }
+    };
+  }, [draft, selectedWebsiteId, selectedArchiveId]);
+
+  // Selektion / Hilfsvariablen
   const selectedWebsite =
     websites.find((w) => w.id === selectedWebsiteId) ?? null;
   const archives: ArchiveConfig[] = selectedWebsite?.archives ?? [];
   const selectedArchive =
     archives.find((a) => a.id === selectedArchiveId) ?? null;
 
+  // Titel ändern
   const handleChangeDraftTitle = (title: string) => {
     setDraft((prev) => ({ ...prev, title }));
   };
 
+  // Inhalt aus WYSIWYG-Editor ändern
   const handleHtmlChange = (html: string) => {
-    setDraft((prev) => ({ ...prev, contentHtml: html }));
+    setDraft((prev) => {
+      if (prev.contentHtml === html) return prev;
+      return { ...prev, contentHtml: html };
+    });
   };
 
   // Datum formatieren (z.B. "14.11.2025")
@@ -93,10 +184,8 @@ export default function ArticleScreen() {
     return `${day}.${month}.${year}`;
   };
 
-  // Datepicker öffnen (vorerst nur Placeholder)
+  // Datepicker öffnen
   const openDatePicker = () => {
-    // Wenn schon ein Datum gesetzt ist, dieses als Startdatum nehmen
-
     if (draft.publishedAt) {
       setTempDate(new Date(draft.publishedAt));
     } else {
@@ -119,8 +208,33 @@ export default function ArticleScreen() {
     setShowDatePicker(false);
   };
 
+  // Umschalten WYSIWYG <-> HTML
+  const handleToggleHtmlMode = () => {
+    if (!isHtmlMode) {
+      // WYSIWYG → HTML
+      setRawHtml(draft.contentHtml ?? '');
+      setIsHtmlMode(true);
+    } else {
+      // HTML → WYSIWYG
+      const newHtml = rawHtml ?? '';
+      setDraft((prev) => ({
+        ...prev,
+        contentHtml: newHtml,
+      }));
+      setIsHtmlMode(false);
 
-
+      // Editor-Inhalt aktiv setzen (falls gemountet)
+      setTimeout(() => {
+        try {
+          if (_editor.current?.dangerouslyPasteHTML) {
+            _editor.current.dangerouslyPasteHTML(newHtml);
+          }
+        } catch (e) {
+          console.warn('Could not update editor content:', e);
+        }
+      }, 50);
+    }
+  };
 
   return (
     <ScrollView
@@ -147,9 +261,12 @@ export default function ArticleScreen() {
                 selectedId={selectedWebsiteId}
                 onSelectId={(id) => {
                   setSelectedWebsiteId(id);
-                  const newWebsite = websites.find((w) => w.id === id) ?? null;
-                  setSelectedArchiveId(newWebsite?.archives[0]?.id ?? null);
-                  // Draft-Laden machen wir später
+                  const newWebsite =
+                    websites.find((w) => w.id === id) ?? null;
+                  const firstArchiveId =
+                    newWebsite?.archives[0]?.id ?? null;
+                  setSelectedArchiveId(firstArchiveId);
+                  // Draft wird über useEffect (loadCurrentDraft) geladen
                 }}
               />
             </View>
@@ -161,7 +278,7 @@ export default function ArticleScreen() {
                 selectedId={selectedArchiveId}
                 onSelectId={(id) => {
                   setSelectedArchiveId(id);
-                  // Draft-Laden machen wir später
+                  // Draft wird über useEffect (loadCurrentDraft) geladen
                 }}
               />
             </View>
@@ -175,7 +292,6 @@ export default function ArticleScreen() {
           )}
         </>
       )}
-      {/* ... deine Website-/Archiv-UI bleibt wie gehabt ... */}
 
       <Text style={globalStyles.sectionTitle}>Artikel</Text>
       {selectedWebsite && selectedArchive ? (
@@ -193,13 +309,12 @@ export default function ArticleScreen() {
             <Text style={globalStyles.label}>Inhalt</Text>
 
             <TouchableOpacity style={styles.dateButton} onPress={openDatePicker}>
-                <Text style={styles.dateButtonText}>
-                  {draft.publishedAt
-                    ? formatDate(draft.publishedAt)
-                    : 'Datum setzen'}
-                </Text>
-              </TouchableOpacity>
-
+              <Text style={styles.dateButtonText}>
+                {draft.publishedAt
+                  ? formatDate(draft.publishedAt)
+                  : 'Datum setzen'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.editorContainer}>
@@ -208,32 +323,23 @@ export default function ArticleScreen() {
               editorRef={_editor}
               currentHtml={draft.contentHtml}
               isHtmlMode={isHtmlMode}
-              onToggleHtmlMode={() => {
-                // Beim Umschalten Modus wechseln
-                if (!isHtmlMode) {
-                  // WYSIWYG → HTML-Modus: aktuellen Inhalt in rawHtml übernehmen
-                  setRawHtml(draft.contentHtml);
-                  setIsHtmlMode(true);
-                } else {
-                  // HTML-Modus → WYSIWYG: rawHtml zurück in draft.contentHtml
-                  setDraft((prev) => ({
-                    ...prev,
-                    contentHtml: rawHtml,
-                  }));
-                  setIsHtmlMode(false);
-                }
-              }}
+              onToggleHtmlMode={handleToggleHtmlMode}
             />
 
-            {/* Quill Editor */}
+            {/* Quill Editor oder HTML-Textarea */}
             {!isHtmlMode ? (
               <QuillEditor
+                key={`${selectedWebsiteId ?? 'no-site'}-${selectedArchiveId ?? 'no-arch'}`}
                 ref={_editor}
                 style={styles.quillEditor}
                 initialHtml={draft.contentHtml}
-                onHtmlChange={(event: { html: string }) =>
-                  handleHtmlChange(event.html)
-                }
+                onHtmlChange={(payload: any) => {
+                  const html =
+                    typeof payload === 'string'
+                      ? payload
+                      : payload?.html ?? '';
+                  handleHtmlChange(html);
+                }}
                 quill={{
                   placeholder: 'Artikelinhalt hier eingeben...',
                   theme: 'snow',
@@ -266,13 +372,11 @@ export default function ArticleScreen() {
         date={
           draft.publishedAt
             ? new Date(draft.publishedAt)
-            : new Date()
+            : tempDate ?? new Date()
         }
         onConfirm={handleConfirmDate}
         onCancel={handleCancelDate}
       />
-
-
     </ScrollView>
   );
 }
@@ -295,7 +399,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#007bff',
     textDecorationLine: 'underline',
-  },  
+  },
   editorContainer: {
     borderColor: '#ccc',
     borderWidth: 1,
@@ -321,10 +425,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#333',
     fontWeight: '500',
-  },  
+  },
   htmlTextInput: {
     minHeight: 200,
     padding: 8,
     fontSize: 12,
-  },  
+  },
 });
