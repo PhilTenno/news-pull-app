@@ -5,7 +5,7 @@ import {
   WebsiteConfig,
 } from '@/storage/settingsStorage';
 import { globalStyles } from '@/styles/globalStyles';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -31,7 +31,6 @@ export default function ArticleScreen() {
   const [websites, setWebsites] = useState<WebsiteConfig[]>([]);
   const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(null);
   const [selectedArchiveId, setSelectedArchiveId] = useState<string | null>(null);
-  
   const [loading, setLoading] = useState(true);
 
   const [draft, setDraft] = useState<ArticleDraft>({
@@ -39,6 +38,9 @@ export default function ArticleScreen() {
     contentHtml: '',
     publishedAt: null,
   });
+
+  const [isHtmlMode, setIsHtmlMode] = useState(false);
+  const [rawHtml, setRawHtml] = useState(draft.contentHtml);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
@@ -205,24 +207,51 @@ export default function ArticleScreen() {
             <ArticleToolbar
               editorRef={_editor}
               currentHtml={draft.contentHtml}
+              isHtmlMode={isHtmlMode}
+              onToggleHtmlMode={() => {
+                // Beim Umschalten Modus wechseln
+                if (!isHtmlMode) {
+                  // WYSIWYG → HTML-Modus: aktuellen Inhalt in rawHtml übernehmen
+                  setRawHtml(draft.contentHtml);
+                  setIsHtmlMode(true);
+                } else {
+                  // HTML-Modus → WYSIWYG: rawHtml zurück in draft.contentHtml
+                  setDraft((prev) => ({
+                    ...prev,
+                    contentHtml: rawHtml,
+                  }));
+                  setIsHtmlMode(false);
+                }
+              }}
             />
 
             {/* Quill Editor */}
-            <QuillEditor
-              ref={_editor}
-              style={styles.quillEditor}
-              initialHtml={draft.contentHtml}
-              onHtmlChange={(event: { html: string }) =>
-                handleHtmlChange(event.html)
-              }
-              quill={{
-                placeholder: 'Artikelinhalt hier eingeben...',
-                theme: 'snow',
-                modules: {
-                  toolbar: false, // wir benutzen unsere eigene Toolbar
-                },
-              }}
-            />
+            {!isHtmlMode ? (
+              <QuillEditor
+                ref={_editor}
+                style={styles.quillEditor}
+                initialHtml={draft.contentHtml}
+                onHtmlChange={(event: { html: string }) =>
+                  handleHtmlChange(event.html)
+                }
+                quill={{
+                  placeholder: 'Artikelinhalt hier eingeben...',
+                  theme: 'snow',
+                  modules: {
+                    toolbar: false,
+                  },
+                }}
+              />
+            ) : (
+              <TextInput
+                style={styles.htmlTextInput}
+                multiline
+                value={rawHtml}
+                onChangeText={setRawHtml}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            )}
           </View>
         </>
       ) : (
@@ -292,5 +321,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#0056d6',
     fontWeight: '500',
+  },  
+  htmlTextInput: {
+    minHeight: 200,
+    padding: 8,
+    fontSize: 12,
   },  
 });

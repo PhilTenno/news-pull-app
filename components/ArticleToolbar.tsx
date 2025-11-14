@@ -2,11 +2,10 @@
 import { AppDropdown } from '@/components/AppDropdown';
 import React from 'react';
 import {
-  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import QuillEditor from 'react-native-cn-quill';
 
@@ -28,11 +27,15 @@ const HEADING_OPTIONS: HeadingOption[] = [
 type ArticleToolbarProps = {
   editorRef: React.RefObject<QuillEditor | null>;
   currentHtml: string;
+  isHtmlMode: boolean;
+  onToggleHtmlMode: () => void;
 };
 
 export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
   editorRef,
   currentHtml,
+  isHtmlMode,
+  onToggleHtmlMode,
 }) => {
   const [selectedHeadingId, setSelectedHeadingId] = React.useState<string>('p');
   const applyHeading = async (option: HeadingOption) => {
@@ -65,14 +68,6 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
     await editor.format('list', type);
   };
 
-   const showHtml = () => {
-    if (!currentHtml || currentHtml.trim() === '') {
-      Alert.alert('Generiertes HTML', '(Noch kein Inhalt)');
-    } else {
-      Alert.alert('Generiertes HTML', currentHtml);
-    }
-  };
-
   return (
     <View style={styles.container}>
       {/* Heading Dropdown */}
@@ -103,7 +98,7 @@ export const ArticleToolbar: React.FC<ArticleToolbarProps> = ({
         <ToolbarButton label="x²" onPress={() => toggleScript('super')} />
         <ToolbarButton label="=" onPress={() => setList('bullet')} />
         <ToolbarButton label="1." onPress={() => setList('ordered')} />
-        <ToolbarButton label="HTML" onPress={showHtml} />
+        <ToolbarButton label="</>" onPress={onToggleHtmlMode} />
       </View>
     </View>
   );
@@ -143,7 +138,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   button: {
-    minWidth: 30,
+    minWidth: 37,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -152,7 +147,7 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     alignItems: 'center',
     justifyContent: 'center',
-    marginInlineEnd: 10,
+    marginInlineEnd: 8,
   },
   buttonText: {
     fontSize: 11,
