@@ -13,6 +13,7 @@ import { AppDropdown } from '@/components/AppDropdown';
 import {
   ArticleDraft,
   loadDraft,
+  saveDraft,
 } from '@/storage/articleDraftStorage';
 import {
   ArchiveConfig,
@@ -21,6 +22,7 @@ import {
 } from '@/storage/settingsStorage';
 import { globalStyles } from '@/styles/globalStyles';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import LexicalDomEditor from '../../components/dom/LexicalDomEditor';
 
 export default function ArticleScreen() {
   const [websites, setWebsites] = useState<WebsiteConfig[]>([]);
@@ -70,6 +72,12 @@ export default function ArticleScreen() {
     loadCurrentDraft();
   }, [selectedWebsiteId, selectedArchiveId]);
 
+
+  //Log
+  useEffect(() => {
+  console.log('Draft contentHtml:', draft.contentHtml);
+}, [draft.contentHtml]);
+
   // Titel ändern
   const handleChangeDraftTitle = (title: string) => {
     setDraft(prev => ({ ...prev, title }));
@@ -106,6 +114,17 @@ export default function ArticleScreen() {
 
   const handleCancelDate = () => {
     setShowDatePicker(false);
+  };
+
+  const handleSave = async () => {
+    if (!selectedWebsiteId || !selectedArchiveId) return;
+    try {
+      await saveDraft(selectedWebsiteId, selectedArchiveId, draft);
+      console.log('Draft gespeichert');
+      // Optional: später Toast/Alert einbauen
+    } catch (e) {
+      console.error('Fehler beim Speichern:', e);
+    }
   };
 
   // Berechnung der Selektion
@@ -186,10 +205,24 @@ export default function ArticleScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Platzhalter für den Editor */}
-          <Text style={{ color: '#999', marginTop: 12 }}>
-            Hier folgt der Editor
-          </Text>
+          <View style={{ marginTop: 12, marginBottom: 24 }}>
+            <LexicalDomEditor
+              value={draft.contentHtml}
+              onChange={(html) => {
+                setDraft(prev => ({ ...prev, contentHtml: html }));
+              }}
+              dom={{ style: { height: 250 } }}
+            />
+            <View style={{ marginTop: 12, alignItems: 'flex-end' }}>
+              <TouchableOpacity onPress={handleSave}>
+                <Text style={{ color: '#0a7ea4', fontWeight: '600' }}>
+                  Entwurf speichern
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+
+          </View>
         </>
       ) : (
         <Text style={{ color: '#999' }}>
