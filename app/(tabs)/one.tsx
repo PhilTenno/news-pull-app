@@ -1,5 +1,5 @@
 // app/(tabs)/one.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -10,11 +10,9 @@ import {
 } from 'react-native';
 
 import { AppDropdown } from '@/components/AppDropdown';
-import { ArticleToolbar } from '@/components/ArticleToolbar';
 import {
   ArticleDraft,
   loadDraft,
-  saveDraft,
 } from '@/storage/articleDraftStorage';
 import {
   ArchiveConfig,
@@ -22,7 +20,6 @@ import {
   WebsiteConfig,
 } from '@/storage/settingsStorage';
 import { globalStyles } from '@/styles/globalStyles';
-import QuillEditor from 'react-native-cn-quill';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 export default function ArticleScreen() {
@@ -37,22 +34,10 @@ export default function ArticleScreen() {
     publishedAt: null,
   });
 
-  const [isHtmlMode, setIsHtmlMode] = useState(false);
-  const [rawHtml, setRawHtml] = useState(draft.contentHtml);
-
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
 
-  // Wichtig: any statt QuillEditor-Typ, um TS-Fehler zu vermeiden
-  const _editor = useRef<any>(null);
-
-  // Merkt den zuletzt geladenen Draft (für Skip-Logic beim Speichern)
-  const lastLoadedDraftRef = useRef<string | null>(null);
-
-  // Optional: Debounce für Autosave — Typ portable mit ReturnType<typeof setTimeout>
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Einstellungen (Websites/Archive) laden
+  // Lade Websites beim Start
   useEffect(() => {
     const loadSettings = async () => {
       const storedWebsites = await loadWebsites();
@@ -64,115 +49,30 @@ export default function ArticleScreen() {
 
       setSelectedWebsiteId(firstWebsiteId);
       setSelectedArchiveId(firstArchiveId);
-
       setLoading(false);
     };
 
     loadSettings();
   }, []);
 
-  // Draft für aktuelle Website + Archiv laden
+  // Lade Draft wenn Website/Archiv geändert wird
   useEffect(() => {
     const loadCurrentDraft = async () => {
-      if (!selectedWebsiteId || !selectedArchiveId) {
-        return;
-      }
+      if (!selectedWebsiteId || !selectedArchiveId) return;
 
-      try {
-        const existing = await loadDraft(selectedWebsiteId, selectedArchiveId);
+      const existing = await loadDraft(selectedWebsiteId, selectedArchiveId);
+      const toSet: ArticleDraft =
+        existing ?? { title: '', contentHtml: '', publishedAt: null };
 
-        const toSet: ArticleDraft =
-          existing ?? {
-            title: '',
-            contentHtml: '',
-            publishedAt: null,
-          };
-
-        setDraft(toSet);
-        setRawHtml(toSet.contentHtml ?? '');
-        setIsHtmlMode(false);
-
-        // Genauso merken, wie geladen (als JSON)
-        lastLoadedDraftRef.current = JSON.stringify(toSet);
-
-        console.log(
-          '[UI] loaded draft for',
-          selectedWebsiteId,
-          selectedArchiveId,
-          existing ? 'FOUND' : 'NEW'
-        );
-      } catch (err) {
-        console.error('Error loading draft:', err);
-      }
+      setDraft(toSet);
     };
 
     loadCurrentDraft();
   }, [selectedWebsiteId, selectedArchiveId]);
 
-  // Draft automatisch speichern (debounced) für aktuelle Website + Archiv
-  useEffect(() => {
-    if (!selectedWebsiteId || !selectedArchiveId) {
-      return;
-    }
-
-    const draftJson = JSON.stringify(draft);
-
-    // Wenn Draft identisch zum zuletzt geladenen → nicht speichern
-    if (lastLoadedDraftRef.current === draftJson) {
-      return;
-    }
-
-    const persistDraft = async () => {
-      try {
-        console.log(
-          '[UI] persistDraft for',
-          selectedWebsiteId,
-          selectedArchiveId,
-          'title=',
-          draft.title,
-          'len=',
-          draft.contentHtml?.length
-        );
-        await saveDraft(selectedWebsiteId, selectedArchiveId, draft);
-
-        // Nach erfolgreichem Speichern Zustand merken
-        lastLoadedDraftRef.current = draftJson;
-      } catch (err) {
-        console.error('Persist draft failed', err);
-      }
-    };
-
-    // Debounce: 800ms nach letzter Änderung speichern
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current as ReturnType<typeof setTimeout>);
-    }
-    saveTimeoutRef.current = setTimeout(persistDraft, 800);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current as ReturnType<typeof setTimeout>);
-      }
-    };
-  }, [draft, selectedWebsiteId, selectedArchiveId]);
-
-  // Selektion / Hilfsvariablen
-  const selectedWebsite =
-    websites.find((w) => w.id === selectedWebsiteId) ?? null;
-  const archives: ArchiveConfig[] = selectedWebsite?.archives ?? [];
-  const selectedArchive =
-    archives.find((a) => a.id === selectedArchiveId) ?? null;
-
   // Titel ändern
   const handleChangeDraftTitle = (title: string) => {
-    setDraft((prev) => ({ ...prev, title }));
-  };
-
-  // Inhalt aus WYSIWYG-Editor ändern
-  const handleHtmlChange = (html: string) => {
-    setDraft((prev) => {
-      if (prev.contentHtml === html) return prev;
-      return { ...prev, contentHtml: html };
-    });
+    setDraft(prev => ({ ...prev, title }));
   };
 
   // Datum formatieren (z.B. "14.11.2025")
@@ -184,7 +84,7 @@ export default function ArticleScreen() {
     return `${day}.${month}.${year}`;
   };
 
-  // Datepicker öffnen
+  // Datepicker öffnen/schließen
   const openDatePicker = () => {
     if (draft.publishedAt) {
       setTempDate(new Date(draft.publishedAt));
@@ -200,7 +100,7 @@ export default function ArticleScreen() {
     const day = String(selectedDate.getDate()).padStart(2, '0');
     const iso = `${year}-${month}-${day}T00:00:00.000Z`;
 
-    setDraft((prev) => ({ ...prev, publishedAt: iso }));
+    setDraft(prev => ({ ...prev, publishedAt: iso }));
     setShowDatePicker(false);
   };
 
@@ -208,33 +108,10 @@ export default function ArticleScreen() {
     setShowDatePicker(false);
   };
 
-  // Umschalten WYSIWYG <-> HTML
-  const handleToggleHtmlMode = () => {
-    if (!isHtmlMode) {
-      // WYSIWYG → HTML
-      setRawHtml(draft.contentHtml ?? '');
-      setIsHtmlMode(true);
-    } else {
-      // HTML → WYSIWYG
-      const newHtml = rawHtml ?? '';
-      setDraft((prev) => ({
-        ...prev,
-        contentHtml: newHtml,
-      }));
-      setIsHtmlMode(false);
-
-      // Editor-Inhalt aktiv setzen (falls gemountet)
-      setTimeout(() => {
-        try {
-          if (_editor.current?.dangerouslyPasteHTML) {
-            _editor.current.dangerouslyPasteHTML(newHtml);
-          }
-        } catch (e) {
-          console.warn('Could not update editor content:', e);
-        }
-      }, 50);
-    }
-  };
+  // Berechnung der Selektion
+  const selectedWebsite = websites.find(w => w.id === selectedWebsiteId) ?? null;
+  const archives: ArchiveConfig[] = selectedWebsite?.archives ?? [];
+  const selectedArchive = archives.find(a => a.id === selectedArchiveId) ?? null;
 
   return (
     <ScrollView
@@ -242,7 +119,6 @@ export default function ArticleScreen() {
       contentContainerStyle={{ paddingBottom: 24 }}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Archiv wählen */}
       <Text style={globalStyles.sectionTitle}>Archiv wählen</Text>
 
       {websites.length === 0 ? (
@@ -251,22 +127,18 @@ export default function ArticleScreen() {
         </Text>
       ) : (
         <>
-          {/* Zeile mit Website- und Archiv-Dropdown */}
           <View style={styles.row}>
             <View style={styles.column}>
               <AppDropdown
                 label="Website"
                 placeholder="Website wählen..."
-                items={websites.map((w) => ({ id: w.id, label: w.name }))}
+                items={websites.map(w => ({ id: w.id, label: w.name }))}
                 selectedId={selectedWebsiteId}
-                onSelectId={(id) => {
+                onSelectId={id => {
                   setSelectedWebsiteId(id);
-                  const newWebsite =
-                    websites.find((w) => w.id === id) ?? null;
-                  const firstArchiveId =
-                    newWebsite?.archives[0]?.id ?? null;
+                  const newWebsite = websites.find(w => w.id === id) ?? null;
+                  const firstArchiveId = newWebsite?.archives[0]?.id ?? null;
                   setSelectedArchiveId(firstArchiveId);
-                  // Draft wird über useEffect (loadCurrentDraft) geladen
                 }}
               />
             </View>
@@ -274,17 +146,15 @@ export default function ArticleScreen() {
               <AppDropdown
                 label="Archiv"
                 placeholder="Archiv wählen..."
-                items={archives.map((a) => ({ id: a.id, label: a.name }))}
+                items={archives.map(a => ({ id: a.id, label: a.name }))}
                 selectedId={selectedArchiveId}
-                onSelectId={(id) => {
+                onSelectId={id => {
                   setSelectedArchiveId(id);
-                  // Draft wird über useEffect (loadCurrentDraft) geladen
                 }}
               />
             </View>
           </View>
 
-          {/* Hinweis, falls keine Archive vorhanden */}
           {selectedWebsite && archives.length === 0 && (
             <Text style={{ color: '#999', marginBottom: 16 }}>
               Für diese Website sind noch keine Archive angelegt.
@@ -304,8 +174,7 @@ export default function ArticleScreen() {
             onChangeText={handleChangeDraftTitle}
           />
 
-          {/* Zeile: Inhalt (links) + Veröffentlichungsdatum (rechts) */}
-          <View style={[styles.rowBetween, { marginTop: 12 }]}>
+          <View style={[styles.rowBetween, { marginTop: 20 }]}>
             <Text style={globalStyles.label}>Inhalt</Text>
 
             <TouchableOpacity style={styles.dateButton} onPress={openDatePicker}>
@@ -317,48 +186,10 @@ export default function ArticleScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.editorContainer}>
-            {/* Eigene Toolbar */}
-            <ArticleToolbar
-              editorRef={_editor}
-              currentHtml={draft.contentHtml}
-              isHtmlMode={isHtmlMode}
-              onToggleHtmlMode={handleToggleHtmlMode}
-            />
-
-            {/* Quill Editor oder HTML-Textarea */}
-            {!isHtmlMode ? (
-              <QuillEditor
-                key={`${selectedWebsiteId ?? 'no-site'}-${selectedArchiveId ?? 'no-arch'}`}
-                ref={_editor}
-                style={styles.quillEditor}
-                initialHtml={draft.contentHtml}
-                onHtmlChange={(payload: any) => {
-                  const html =
-                    typeof payload === 'string'
-                      ? payload
-                      : payload?.html ?? '';
-                  handleHtmlChange(html);
-                }}
-                quill={{
-                  placeholder: 'Artikelinhalt hier eingeben...',
-                  theme: 'snow',
-                  modules: {
-                    toolbar: false,
-                  },
-                }}
-              />
-            ) : (
-              <TextInput
-                style={styles.htmlTextInput}
-                multiline
-                value={rawHtml}
-                onChangeText={setRawHtml}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            )}
-          </View>
+          {/* Platzhalter für den Editor */}
+          <Text style={{ color: '#999', marginTop: 12 }}>
+            Hier folgt der Editor
+          </Text>
         </>
       ) : (
         <Text style={{ color: '#999' }}>
@@ -395,24 +226,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  dateLabel: {
-    fontSize: 14,
-    color: '#007bff',
-    textDecorationLine: 'underline',
-  },
-  editorContainer: {
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 16,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
-  },
-  quillEditor: {
-    height: 300,
-    paddingHorizontal: 10,
-    backgroundColor: '#fff',
-  },
   dateButton: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -425,10 +238,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#333',
     fontWeight: '500',
-  },
-  htmlTextInput: {
-    minHeight: 200,
-    padding: 8,
-    fontSize: 12,
   },
 });
