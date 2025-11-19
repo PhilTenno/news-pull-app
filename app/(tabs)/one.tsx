@@ -205,7 +205,7 @@ export default function ArticleScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={{ marginTop: 12, marginBottom: 24 }}>
+          <View style={{ marginTop: 12, marginBottom: 24,backgroundColor:'#fff',borderRadius:6, borderColor:'#ccc',borderWidth:1 }}>
             <LexicalDomEditor
               value={draft.contentHtml}
               onChange={(html) => {
@@ -271,5 +271,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#333',
     fontWeight: '500',
-  },
+  }
 });

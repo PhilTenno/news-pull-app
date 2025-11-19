@@ -38,7 +38,6 @@ export default function ToolbarPlugin() {
   // Block-/Listen-Status
   const [blockType, setBlockType] = useState<HeadingTag>("paragraph");
   const [listType, setListType] = useState<ListType>("none");
-
   const updateToolbar = useCallback(
     (editorState: EditorState) => {
       editorState.read(() => {
@@ -118,13 +117,13 @@ export default function ToolbarPlugin() {
   }, [editor, updateToolbar]);
 
   // === Inline-Format ===
-
-  const formatText = (format: "bold" | "italic" | "underline" | "subscript" | "superscript") => {
+  const formatText = (
+    format: "bold" | "italic" | "underline" | "subscript" | "superscript"
+  ) => {
     editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
   };
 
   // === Blocktyp / Headings ===
-
   const applyBlockType = (tag: HeadingTag) => {
     editor.update(() => {
       const selection = $getSelection();
@@ -140,7 +139,6 @@ export default function ToolbarPlugin() {
       if (tag === "paragraph") {
         if (element.getType() !== "paragraph") {
           const paragraphNode = $createParagraphNode();
-          // Kinder in den neuen Paragraphen übernehmen
           const children = element.getChildren();
           children.forEach((child) => {
             paragraphNode.append(child);
@@ -151,18 +149,9 @@ export default function ToolbarPlugin() {
           targetElement = element;
         }
 
-        // Selection ans Ende des Absatzes setzen
         const offset = targetElement.getChildrenSize();
-        selection.anchor.set(
-          targetElement.getKey(),
-          offset,
-          "element"
-        );
-        selection.focus.set(
-          targetElement.getKey(),
-          offset,
-          "element"
-        );
+        selection.anchor.set(targetElement.getKey(), offset, "element");
+        selection.focus.set(targetElement.getKey(), offset, "element");
         $setSelection(selection);
 
         setBlockType("paragraph");
@@ -184,18 +173,9 @@ export default function ToolbarPlugin() {
         targetElement = headingNode;
       }
 
-      // Selection ans Ende der Überschrift setzen
       const offset = targetElement.getChildrenSize();
-      selection.anchor.set(
-        targetElement.getKey(),
-        offset,
-        "element"
-      );
-      selection.focus.set(
-        targetElement.getKey(),
-        offset,
-        "element"
-      );
+      selection.anchor.set(targetElement.getKey(), offset, "element");
+      selection.focus.set(targetElement.getKey(), offset, "element");
       $setSelection(selection);
 
       setBlockType(tag);
@@ -203,7 +183,6 @@ export default function ToolbarPlugin() {
   };
 
   // === Listen: Toggle UL ===
-
   const toggleUnorderedList = () => {
     editor.update(() => {
       const selection = $getSelection();
@@ -215,7 +194,6 @@ export default function ToolbarPlugin() {
           ? anchor
           : anchor.getTopLevelElementOrThrow();
 
-      // A: Top-Level ist eine UL -> zurück zu Paragraphen
       if (element instanceof ListNode && element.getListType() === "bullet") {
         const paragraphs = element
           .getChildren()
@@ -229,7 +207,9 @@ export default function ToolbarPlugin() {
             }
             return null;
           })
-          .filter((n) => n !== null) as Array<ReturnType<typeof $createParagraphNode>>;
+          .filter((n) => n !== null) as Array<ReturnType<
+          typeof $createParagraphNode
+        >>;
 
         if (paragraphs.length > 0) {
           element.replace(paragraphs[0]);
@@ -243,7 +223,6 @@ export default function ToolbarPlugin() {
         return;
       }
 
-      // B: Cursor in ListItem einer UL -> Liste auflösen
       if (element instanceof ListItemNode) {
         const parent = element.getParent();
         if (parent instanceof ListNode && parent.getListType() === "bullet") {
@@ -256,13 +235,11 @@ export default function ToolbarPlugin() {
         }
       }
 
-      // Sonst: Standard UL-Kommandos (Paragraph -> UL oder OL -> UL)
       editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
     });
   };
 
   // === Listen: Toggle OL ===
-
   const toggleOrderedList = () => {
     editor.update(() => {
       const selection = $getSelection();
@@ -274,7 +251,6 @@ export default function ToolbarPlugin() {
           ? anchor
           : anchor.getTopLevelElementOrThrow();
 
-      // A: Top-Level ist eine OL -> zurück zu Paragraphen
       if (element instanceof ListNode && element.getListType() === "number") {
         const paragraphs = element
           .getChildren()
@@ -288,7 +264,9 @@ export default function ToolbarPlugin() {
             }
             return null;
           })
-          .filter((n) => n !== null) as Array<ReturnType<typeof $createParagraphNode>>;
+          .filter((n) => n !== null) as Array<ReturnType<
+          typeof $createParagraphNode
+        >>;
 
         if (paragraphs.length > 0) {
           element.replace(paragraphs[0]);
@@ -302,7 +280,6 @@ export default function ToolbarPlugin() {
         return;
       }
 
-      // B: Cursor in ListItem einer OL -> Liste auflösen
       if (element instanceof ListItemNode) {
         const parent = element.getParent();
         if (parent instanceof ListNode && parent.getListType() === "number") {
@@ -315,17 +292,16 @@ export default function ToolbarPlugin() {
         }
       }
 
-      // Sonst: Standard OL-Kommandos
       editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
     });
   };
 
   // === Render ===
-
   return (
     <div
       style={{
         display: "flex",
+        flexWrap: "wrap",
         gap: 8,
         borderBottomWidth: 1,
         borderBottomColor: "#ddd",
@@ -420,7 +396,6 @@ export default function ToolbarPlugin() {
       >
         x<sup>2</sup>
       </button>
-
     </div>
   );
 }

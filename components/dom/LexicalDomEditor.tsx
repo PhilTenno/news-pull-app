@@ -2,7 +2,10 @@
 
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { ContentEditable } from "@lexical/react/LexicalContentEditable";
+import {
+  ContentEditable,
+  type ContentEditableProps,
+} from "@lexical/react/LexicalContentEditable";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
@@ -13,8 +16,10 @@ import ToolbarPlugin from "./plugins/ToolbarPlugin";
 
 import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { ListItemNode, ListNode } from "@lexical/list";
+import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { HeadingNode } from "@lexical/rich-text";
+import AutoLinkPlugin from "./plugins/AutoLinkPlugin";
 
 export type LexicalDomEditorProps = {
   value: string;
@@ -44,9 +49,6 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
     namespace: "NewsPullEditor",
     theme,
     onError,
-    // >>> NEU: Nodes registrieren
-    // Siehe Beispiele z.B. in [Lexical Plugins](https://lexical.dev/docs/react/plugins)
-    // und GitHub-Diskussionen #2745 / #5278.
     nodes: [HeadingNode, ListNode, ListItemNode, LinkNode, AutoLinkNode],
     editorState: (editor: any) => {
       const value = initialHtml;
@@ -78,20 +80,22 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
     });
   };
 
+  // Dummy-Placeholder für ContentEditable, damit der Typ erfüllt ist
+  const contentEditableProps: ContentEditableProps = {
+    className: "editor-input",
+    "aria-placeholder": placeholder,
+    placeholder: <></>,
+  };
+
   return (
     <div className="editor-container" style={props.dom?.style}>
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin />
-        <div className="editor-inner">
+        <div className="editor-inner" style={{position:'relative'}}>
           <RichTextPlugin
-            contentEditable={
-              <ContentEditable
-                className="editor-input"
-                aria-placeholder={placeholder}
-                placeholder={
-                  <div className="editor-placeholder">{placeholder}</div>
-                }
-              />
+            contentEditable={<ContentEditable {...contentEditableProps} />}
+            placeholder={
+              <div className="editor-placeholder" style={{position:'absolute',top:0,left:5,color:'#999',zIndex:-1}}>{placeholder}</div>
             }
             ErrorBoundary={LexicalErrorBoundary}
           />
@@ -101,8 +105,9 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
             ignoreHistoryMergeTagChange
             ignoreSelectionChange
           />
-          {/* NEU */}
           <ListPlugin />
+          <LinkPlugin />
+          <AutoLinkPlugin />
         </div>
       </LexicalComposer>
     </div>
