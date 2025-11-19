@@ -11,6 +11,11 @@ import { $getRoot, type EditorState } from "lexical";
 import { useState } from "react";
 import ToolbarPlugin from "./plugins/ToolbarPlugin";
 
+import { AutoLinkNode, LinkNode } from "@lexical/link";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
+import { HeadingNode } from "@lexical/rich-text";
+
 export type LexicalDomEditorProps = {
   value: string;
   onChange?: (html: string) => void;
@@ -25,7 +30,7 @@ export type LexicalDomEditorProps = {
 const placeholder = "Gib deinen Artikeltext ein…";
 
 const theme = {
-  // Hier könnten wir später Klassen definieren, z.B. für Überschriften etc.
+  // hier könntest du später Klassen ergänzen (siehe Lexical Theming-Doku)
 };
 
 function onError(error: Error) {
@@ -39,7 +44,10 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
     namespace: "NewsPullEditor",
     theme,
     onError,
-    nodes: [],
+    // >>> NEU: Nodes registrieren
+    // Siehe Beispiele z.B. in [Lexical Plugins](https://lexical.dev/docs/react/plugins)
+    // und GitHub-Diskussionen #2745 / #5278.
+    nodes: [HeadingNode, ListNode, ListItemNode, LinkNode, AutoLinkNode],
     editorState: (editor: any) => {
       const value = initialHtml;
       editor.update(() => {
@@ -55,7 +63,7 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
             root.append(node);
           });
         } else {
-          // Lexical erstellt einen leeren Absatz
+          // Lexical erstellt automatisch einen leeren Absatz
         }
       });
     },
@@ -71,7 +79,7 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
   };
 
   return (
-    <div className="editor-container">
+    <div className="editor-container" style={props.dom?.style}>
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin />
         <div className="editor-inner">
@@ -93,6 +101,8 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
             ignoreHistoryMergeTagChange
             ignoreSelectionChange
           />
+          {/* NEU */}
+          <ListPlugin />
         </div>
       </LexicalComposer>
     </div>

@@ -11,7 +11,10 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@lexical/html": "^0.38.2",
+    "@lexical/link": "^0.38.2",
+    "@lexical/list": "^0.38.2",
     "@lexical/react": "^0.38.2",
+    "@lexical/rich-text": "^0.38.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-picker/picker": "2.11.1",
@@ -40,6 +43,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "expo-module-scripts": "^5.0.7",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
   },

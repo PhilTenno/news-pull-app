@@ -31,4 +31,7 @@ export const globalStyles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: '#fff',
   },
+  u: {
+    textDecorationLine:'underline',
+  }
 });
