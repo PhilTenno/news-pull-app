@@ -1,5 +1,5 @@
 // app/(tabs)/one.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -34,8 +34,13 @@ export default function ArticleScreen() {
     title: '',
     contentHtml: '',
     publishedAt: null,
+    keywords: '',
   });
+  
+  // Kennzeichnet, ob es ungespeicherte Änderungen gibt (für spätere UI-Anzeige gedacht)
+  const [draftDirty, setDraftDirty] = useState(false);
 
+  const autoSaveTimeoutRef = useRef<number | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
 
@@ -64,9 +69,12 @@ export default function ArticleScreen() {
 
       const existing = await loadDraft(selectedWebsiteId, selectedArchiveId);
       const toSet: ArticleDraft =
-        existing ?? { title: '', contentHtml: '', publishedAt: null };
+        existing ?? { title: '', contentHtml: '', publishedAt: null, keywords: '' };
 
-      setDraft(toSet);
+      setDraft({
+        ...toSet,
+        keywords: toSet.keywords ?? '',
+      });
     };
 
     loadCurrentDraft();
@@ -81,6 +89,7 @@ export default function ArticleScreen() {
   // Titel ändern
   const handleChangeDraftTitle = (title: string) => {
     setDraft(prev => ({ ...prev, title }));
+    scheduleAutoSave();
   };
 
   // Datum formatieren (z.B. "14.11.2025")
@@ -125,6 +134,7 @@ export default function ArticleScreen() {
     return (
       (draft.title && draft.title.trim().length > 0) ||
       (draft.contentHtml && draft.contentHtml.trim().length > 0) ||
+      (draft.keywords && draft.keywords.trim().length > 0) ||
       draft.publishedAt !== null
     );
   };
@@ -134,9 +144,29 @@ export default function ArticleScreen() {
     try {
       await saveDraft(selectedWebsiteId, selectedArchiveId, draft);
       console.log('Draft gespeichert');
+      setDraftDirty(false); // später z.B. für "Gespeichert"-Indicator nutzbar
     } catch (e) {
       console.error('Fehler beim Speichern:', e);
     }
+  };
+
+  const scheduleAutoSave = () => {
+    // Nur Auto-Save, wenn es sich lohnt
+    if (!hasDraftContent(draft)) {
+      return;
+    }
+
+    setDraftDirty(true);
+
+    // alten Timer löschen
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // neuen Timer setzen (z.B. 2000 ms)
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      saveCurrentDraft();
+    }, 2000);
   };
 
   const handleSave = async () => {
@@ -229,15 +259,30 @@ export default function ArticleScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={{ marginTop: 12, marginBottom: 24,backgroundColor:'#fff',borderRadius:6, borderColor:'#ccc',borderWidth:1 }}>
+          <View style={{ marginTop: 12, marginBottom: 16,backgroundColor:'#fff',borderRadius:6, borderColor:'#ccc',borderWidth:1 }}>
             <LexicalDomEditor
               value={draft.contentHtml}
               onChange={(html) => {
                 setDraft(prev => ({ ...prev, contentHtml: html }));
+                scheduleAutoSave();
               }}
               dom={{ style: { height: 250 } }}
             />
           </View>
+
+          <View style={{ marginBottom: 16 }}>
+            <Text style={globalStyles.label}>Artikel-Keywords</Text>
+            <TextInput
+              style={globalStyles.input}
+              placeholder="z.B. Sport, Radsport, Gravelbike"
+              value={draft.keywords}
+              onChangeText={(keywords) => {
+                setDraft(prev => ({ ...prev, keywords }));
+                scheduleAutoSave();
+              }}
+            />
+          </View>
+
           <View style={{ marginTop: 0, alignItems: 'flex-end' }}>
             <TouchableOpacity onPress={handleSave}>
               <Text style={{ color: '#0a7ea4', fontWeight: '600' }}>
