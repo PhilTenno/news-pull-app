@@ -188,10 +188,10 @@ export default function ArticleScreen() {
         uri,
         [
           // Auf max. 1600 px an der längeren Seite skalieren
-          { resize: { width: 1600 } },
+          { resize: { width: 2500 } },
         ],
         {
-          compress: 0.8,       // 0–1, niedriger = kleinere Datei
+          compress: 0.85,       // 0–1, niedriger = kleinere Datei
           format: ImageManipulator.SaveFormat.JPEG,
         }
       );
