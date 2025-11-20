@@ -213,15 +213,13 @@ export default function ArticleScreen() {
               }}
               dom={{ style: { height: 250 } }}
             />
-            <View style={{ marginTop: 12, alignItems: 'flex-end' }}>
-              <TouchableOpacity onPress={handleSave}>
-                <Text style={{ color: '#0a7ea4', fontWeight: '600' }}>
-                  Entwurf speichern
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-
+          </View>
+          <View style={{ marginTop: 0, alignItems: 'flex-end' }}>
+            <TouchableOpacity onPress={handleSave}>
+              <Text style={{ color: '#0a7ea4', fontWeight: '600' }}>
+                Entwurf speichern
+              </Text>
+            </TouchableOpacity>
           </View>
         </>
       ) : (
