@@ -102,7 +102,7 @@ export default function ArticleScreen() {
     setShowDatePicker(true);
   };
 
-  const handleConfirmDate = (selectedDate: Date) => {
+  const handleConfirmDate = async (selectedDate: Date) => {
     const year = selectedDate.getFullYear();
     const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
     const day = String(selectedDate.getDate()).padStart(2, '0');
@@ -110,21 +110,37 @@ export default function ArticleScreen() {
 
     setDraft(prev => ({ ...prev, publishedAt: iso }));
     setShowDatePicker(false);
+
+    // Nach expliziter Bestätigung direkt speichern
+    if (hasDraftContent({ ...draft, publishedAt: iso })) {
+      await saveCurrentDraft();
+    }
   };
 
   const handleCancelDate = () => {
     setShowDatePicker(false);
   };
 
-  const handleSave = async () => {
+  const hasDraftContent = (draft: ArticleDraft) => {
+    return (
+      (draft.title && draft.title.trim().length > 0) ||
+      (draft.contentHtml && draft.contentHtml.trim().length > 0) ||
+      draft.publishedAt !== null
+    );
+  };
+
+  const saveCurrentDraft = async () => {
     if (!selectedWebsiteId || !selectedArchiveId) return;
     try {
       await saveDraft(selectedWebsiteId, selectedArchiveId, draft);
       console.log('Draft gespeichert');
-      // Optional: später Toast/Alert einbauen
     } catch (e) {
       console.error('Fehler beim Speichern:', e);
     }
+  };
+
+  const handleSave = async () => {
+    await saveCurrentDraft();
   };
 
   // Berechnung der Selektion
@@ -153,7 +169,12 @@ export default function ArticleScreen() {
                 placeholder="Website wählen..."
                 items={websites.map(w => ({ id: w.id, label: w.name }))}
                 selectedId={selectedWebsiteId}
-                onSelectId={id => {
+                onSelectId={async id => {
+                  // Vor dem Wechsel aktuellen Draft speichern, falls sinnvoll
+                  if (hasDraftContent(draft)) {
+                    await saveCurrentDraft();
+                  }
+
                   setSelectedWebsiteId(id);
                   const newWebsite = websites.find(w => w.id === id) ?? null;
                   const firstArchiveId = newWebsite?.archives[0]?.id ?? null;
@@ -167,7 +188,10 @@ export default function ArticleScreen() {
                 placeholder="Archiv wählen..."
                 items={archives.map(a => ({ id: a.id, label: a.name }))}
                 selectedId={selectedArchiveId}
-                onSelectId={id => {
+                onSelectId={async id => {
+                  if (hasDraftContent(draft)) {
+                    await saveCurrentDraft();
+                  }
                   setSelectedArchiveId(id);
                 }}
               />
