@@ -1,6 +1,9 @@
 // app/(tabs)/one.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActionSheetIOS,
+  Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +24,8 @@ import {
   WebsiteConfig,
 } from '@/storage/settingsStorage';
 import { globalStyles } from '@/styles/globalStyles';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import LexicalDomEditor from '../../components/dom/LexicalDomEditor';
 
@@ -35,8 +40,9 @@ export default function ArticleScreen() {
     contentHtml: '',
     publishedAt: null,
     keywords: '',
+    image: null,
   });
-  
+
   // Kennzeichnet, ob es ungespeicherte Änderungen gibt (für spätere UI-Anzeige gedacht)
   const [draftDirty, setDraftDirty] = useState(false);
 
@@ -44,7 +50,7 @@ export default function ArticleScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
 
-  // Lade Websites beim Start
+  // Websites laden
   useEffect(() => {
     const loadSettings = async () => {
       const storedWebsites = await loadWebsites();
@@ -62,7 +68,7 @@ export default function ArticleScreen() {
     loadSettings();
   }, []);
 
-  // Lade Draft wenn Website/Archiv geändert wird
+  // Draft laden, wenn Website/Archiv wechselt
   useEffect(() => {
     const loadCurrentDraft = async () => {
       if (!selectedWebsiteId || !selectedArchiveId) return;
@@ -74,17 +80,17 @@ export default function ArticleScreen() {
       setDraft({
         ...toSet,
         keywords: toSet.keywords ?? '',
+        image: toSet.image ?? null,
       });
     };
 
     loadCurrentDraft();
   }, [selectedWebsiteId, selectedArchiveId]);
 
-
-  //Log
+  // Log
   useEffect(() => {
-  console.log('Draft contentHtml:', draft.contentHtml);
-}, [draft.contentHtml]);
+    console.log('Draft contentHtml:', draft.contentHtml);
+  }, [draft.contentHtml]);
 
   // Titel ändern
   const handleChangeDraftTitle = (title: string) => {
@@ -117,12 +123,13 @@ export default function ArticleScreen() {
     const day = String(selectedDate.getDate()).padStart(2, '0');
     const iso = `${year}-${month}-${day}T00:00:00.000Z`;
 
-    setDraft(prev => ({ ...prev, publishedAt: iso }));
+    const nextDraft = { ...draft, publishedAt: iso };
+    setDraft(nextDraft);
     setShowDatePicker(false);
 
     // Nach expliziter Bestätigung direkt speichern
-    if (hasDraftContent({ ...draft, publishedAt: iso })) {
-      await saveCurrentDraft();
+    if (hasDraftContent(nextDraft)) {
+      await saveCurrentDraft(nextDraft);
     }
   };
 
@@ -130,21 +137,22 @@ export default function ArticleScreen() {
     setShowDatePicker(false);
   };
 
-  const hasDraftContent = (draft: ArticleDraft) => {
+  const hasDraftContent = (d: ArticleDraft) => {
     return (
-      (draft.title && draft.title.trim().length > 0) ||
-      (draft.contentHtml && draft.contentHtml.trim().length > 0) ||
-      (draft.keywords && draft.keywords.trim().length > 0) ||
-      draft.publishedAt !== null
+      (d.title && d.title.trim().length > 0) ||
+      (d.contentHtml && d.contentHtml.trim().length > 0) ||
+      (d.keywords && d.keywords.trim().length > 0) ||
+      d.publishedAt !== null ||
+      !!d.image
     );
   };
 
-  const saveCurrentDraft = async () => {
+  const saveCurrentDraft = async (d: ArticleDraft = draft) => {
     if (!selectedWebsiteId || !selectedArchiveId) return;
     try {
-      await saveDraft(selectedWebsiteId, selectedArchiveId, draft);
+      await saveDraft(selectedWebsiteId, selectedArchiveId, d);
       console.log('Draft gespeichert');
-      setDraftDirty(false); // später z.B. für "Gespeichert"-Indicator nutzbar
+      setDraftDirty(false);
     } catch (e) {
       console.error('Fehler beim Speichern:', e);
     }
@@ -166,11 +174,136 @@ export default function ArticleScreen() {
     // neuen Timer setzen (z.B. 2000 ms)
     autoSaveTimeoutRef.current = setTimeout(() => {
       saveCurrentDraft();
-    }, 2000);
+    }, 2000) as unknown as number;
   };
 
   const handleSave = async () => {
     await saveCurrentDraft();
+  };
+
+
+  const processImage = async (uri: string) => {
+    try {
+      const manipulated = await ImageManipulator.manipulateAsync(
+        uri,
+        [
+          // Auf max. 1600 px an der längeren Seite skalieren
+          { resize: { width: 1600 } },
+        ],
+        {
+          compress: 0.8,       // 0–1, niedriger = kleinere Datei
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+
+      return manipulated.uri;
+    } catch (e) {
+      console.warn('Bildmanipulation fehlgeschlagen, verwende Original:', e);
+      return uri;
+    }
+  };
+
+  // Bild aus Galerie
+  const pickImageFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Zugriff benötigt',
+        'Bitte erlaube den Zugriff auf deine Fotos, um ein Bild auswählen zu können.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 1, // wir komprimieren später selbst
+    });
+
+    if (result.canceled || !result.assets || result.assets.length === 0) {
+      return;
+    }
+
+    const asset = result.assets[0];
+
+    // Bild vor dem Speichern verkleinern/komprimieren
+    const processedUri = await processImage(asset.uri);
+
+    setDraft(prev => ({
+      ...prev,
+      image: {
+        uri: processedUri,
+        alt: prev.image?.alt ?? '',
+      },
+    }));
+    scheduleAutoSave();
+  };
+
+  // Bild mit Kamera aufnehmen
+  const pickImageFromCamera = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permissionResult.granted) {
+        Alert.alert(
+          'Kamera-Zugriff benötigt',
+          'Bitte erlaube den Zugriff auf die Kamera, um ein Foto aufnehmen zu können.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 1, // volle Qualität, wir komprimieren danach
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+
+      // Bild vor dem Speichern verkleinern/komprimieren
+      const processedUri = await processImage(asset.uri);
+
+      setDraft(prev => ({
+        ...prev,
+        image: {
+          uri: processedUri,
+          alt: prev.image?.alt ?? '',
+        },
+      }));
+      scheduleAutoSave();
+    } catch (err: any) {
+      if (String(err?.message || err).includes('Camera not available on simulator')) {
+        Alert.alert(
+          'Kamera nicht verfügbar',
+          'Die Kamera steht im iOS-Simulator nicht zur Verfügung. Bitte teste auf einem echten Gerät.'
+        );
+      } else {
+        console.error(err);
+        Alert.alert('Fehler', 'Beim Öffnen der Kamera ist ein Fehler aufgetreten.');
+      }
+    }
+  };
+
+  // Ein Button → Auswahl Kamera oder Galerie
+  const handlePhotoButtonPress = () => {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: draft.image ? 'Foto austauschen' : 'Foto hinzufügen',
+        options: ['Foto aufnehmen', 'Aus Galerie wählen', 'Abbrechen'],
+        cancelButtonIndex: 2,
+      },
+      buttonIndex => {
+        if (buttonIndex === 0) {
+          void pickImageFromCamera();
+        } else if (buttonIndex === 1) {
+          void pickImageFromLibrary();
+        }
+      }
+    );
   };
 
   // Berechnung der Selektion
@@ -200,7 +333,6 @@ export default function ArticleScreen() {
                 items={websites.map(w => ({ id: w.id, label: w.name }))}
                 selectedId={selectedWebsiteId}
                 onSelectId={async id => {
-                  // Vor dem Wechsel aktuellen Draft speichern, falls sinnvoll
                   if (hasDraftContent(draft)) {
                     await saveCurrentDraft();
                   }
@@ -259,10 +391,19 @@ export default function ArticleScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={{ marginTop: 12, marginBottom: 16,backgroundColor:'#fff',borderRadius:6, borderColor:'#ccc',borderWidth:1 }}>
+          <View
+            style={{
+              marginTop: 12,
+              marginBottom: 16,
+              backgroundColor: '#fff',
+              borderRadius: 6,
+              borderColor: '#ccc',
+              borderWidth: 1,
+            }}
+          >
             <LexicalDomEditor
               value={draft.contentHtml}
-              onChange={(html) => {
+              onChange={html => {
                 setDraft(prev => ({ ...prev, contentHtml: html }));
                 scheduleAutoSave();
               }}
@@ -276,11 +417,63 @@ export default function ArticleScreen() {
               style={globalStyles.input}
               placeholder="z.B. Sport, Radsport, Gravelbike"
               value={draft.keywords}
-              onChangeText={(keywords) => {
+              onChangeText={keywords => {
                 setDraft(prev => ({ ...prev, keywords }));
                 scheduleAutoSave();
               }}
             />
+          </View>
+
+          {/* Bild-Bereich */}
+          <View style={{ marginBottom: 16 }}>
+            <View style={styles.rowBetween}>
+              <Text style={globalStyles.label}>Bild</Text>
+
+              <TouchableOpacity onPress={handlePhotoButtonPress}>
+                <Text style={{ color: '#0a7ea4', fontWeight: '600' }}>
+                  {draft.image ? 'Foto austauschen' : 'Foto hinzufügen'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {draft.image && (
+              <View style={{ marginTop: 8 }}>
+                <Image
+                  source={{ uri: draft.image.uri }}
+                  style={{
+                    width: '100%',
+                    height: 180,
+                    borderRadius: 6,
+                    backgroundColor: '#eee',
+                  }}
+                  resizeMode="cover"
+                />
+                <TextInput
+                  style={[globalStyles.input, { marginTop: 8 }]}
+                  placeholder="Kurze Bildbeschreibung einfügen"
+                  value={draft.image.alt}
+                  onChangeText={alt => {
+                    setDraft(prev => ({
+                      ...prev,
+                      image: prev.image ? { ...prev.image, alt } : prev.image,
+                    }));
+                    scheduleAutoSave();
+                  }}
+                />
+                <View style={{ marginTop: 4, alignItems: 'flex-end' }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setDraft(prev => ({ ...prev, image: null }));
+                      scheduleAutoSave();
+                    }}
+                  >
+                    <Text style={{ color: '#cc0000', fontSize: 12 }}>
+                      Bild entfernen
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
 
           <View style={{ marginTop: 0, alignItems: 'flex-end' }}>
@@ -338,5 +531,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#333',
     fontWeight: '500',
-  }
+  },
 });

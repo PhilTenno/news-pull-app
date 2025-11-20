@@ -1,10 +1,17 @@
 // storage/articleDraftStorage.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export type ArticleDraftImage = {
+  uri: string;
+  alt: string;
+};
+
 export type ArticleDraft = {
   title: string;
   contentHtml: string;
   publishedAt: string | null;
+  keywords?: string;
+  image?: ArticleDraftImage | null;
 };
 
 const DRAFT_PREFIX = 'articleDraft';
@@ -36,7 +43,11 @@ export async function loadDraft(
     if (!value) {
       return null;
     }
-    return JSON.parse(value) as ArticleDraft;
+    const parsed = JSON.parse(value) as ArticleDraft;
+    return {
+      ...parsed,
+      image: parsed.image ?? null,
+    };
   } catch (error) {
     console.error('Fehler beim Laden des Drafts:', error);
     return null;
