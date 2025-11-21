@@ -34,9 +34,10 @@ import {
 } from '../../storage/settingsStorage';
 
 // Neue Imports
-import { GeneratedMeta, LocalAISummarizer } from '../services/LocalAISummarizer';
-import { ArticlePayload, uploadToContao } from '../services/uploadToContao';
-import { htmlToPlainText } from '../utils/htmlToPlainText';
+import { GeneratedMeta, LocalAISummarizer } from '../../services/LocalAISummarizer';
+import { ArticlePayload, uploadToContao } from '../../services/uploadToContao';
+import { sanitizeHtmlForUpload } from '../../utils/htmlSanitizeForUpload';
+import { htmlToPlainText } from '../../utils/htmlToPlainText';
 
 export default function ArticleScreen() {
   const [websites, setWebsites] = useState<WebsiteConfig[]>([]);
@@ -52,6 +53,7 @@ export default function ArticleScreen() {
     image: null,
   });
 
+  const changeDebounceRef = useRef<number | null>(null);
   // Kennzeichnet, ob es ungespeicherte Änderungen gibt (für spätere UI-Anzeige gedacht)
   const [draftDirty, setDraftDirty] = useState(false);
 
@@ -79,6 +81,26 @@ export default function ArticleScreen() {
     image: null,
   };
 
+  // --- Guards / refs to avoid update loops ---
+  const lastContentRef = useRef<string>(draft.contentHtml ?? '');
+  // lastSavedKeyRef speichert eine Signatur des zuletzt gespeicherten Drafts
+  const lastSavedKeyRef = useRef<string>('');
+
+  // Hilfsfunktion: erzeugt einfachen Key zur Vergleichsprüfung
+  const computeDraftKey = (d: ArticleDraft) => {
+    return [
+      d.title ?? '',
+      d.contentHtml ?? '',
+      d.keywords ?? '',
+      d.image?.uri ?? '',
+      d.publishedAt ?? '',
+    ].join('|||');
+  };
+
+  // Sync ref when draft.contentHtml changes from other sources
+  useEffect(() => {
+    lastContentRef.current = draft.contentHtml ?? '';
+  }, [draft.contentHtml]);
 
   // Websites laden
   useEffect(() => {
@@ -112,19 +134,24 @@ export default function ArticleScreen() {
         keywords: toSet.keywords ?? '',
         image: toSet.image ?? null,
       });
+
+      // initialen savedKey setzen, damit scheduleAutoSave direkt erkennt, ob Änderung vorliegt
+      lastSavedKeyRef.current = computeDraftKey({
+        ...toSet,
+        keywords: toSet.keywords ?? '',
+        image: toSet.image ?? null,
+      });
     };
 
     loadCurrentDraft();
   }, [selectedWebsiteId, selectedArchiveId]);
 
-  // Log
-  useEffect(() => {
-    console.log('Draft contentHtml:', draft.contentHtml);
-  }, [draft.contentHtml]);
-
   // Titel ändern
   const handleChangeDraftTitle = (title: string) => {
-    setDraft(prev => ({ ...prev, title }));
+    setDraft(prev => {
+      if (prev.title === title) return prev;
+      return { ...prev, title };
+    });
     scheduleAutoSave();
   };
 
@@ -185,8 +212,10 @@ export default function ArticleScreen() {
     if (!selectedWebsiteId || !selectedArchiveId) return;
     try {
       await saveDraft(selectedWebsiteId, selectedArchiveId, d);
-      console.log('Draft gespeichert');
+      //-> console.log('Draft gespeichert');
       setDraftDirty(false);
+      // saved key aktualisieren
+      lastSavedKeyRef.current = computeDraftKey(d);
     } catch (e) {
       console.error('Fehler beim Speichern:', e);
     }
@@ -198,6 +227,14 @@ export default function ArticleScreen() {
       return;
     }
 
+    // Prüfen, ob sich der Draft seit dem letzten Save wirklich geändert hat
+    const currentKey = computeDraftKey(draft);
+    if (currentKey === lastSavedKeyRef.current) {
+      // nichts zu speichern
+      setDraftDirty(false);
+      return;
+    }
+
     setDraftDirty(true);
 
     // alten Timer löschen
@@ -205,16 +242,16 @@ export default function ArticleScreen() {
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    // neuen Timer setzen (z.B. 2000 ms)
+    // neuen Timer setzen (jetzt 1000 ms statt 2000 ms)
+    // @ts-ignore - RN setTimeout returns number
     autoSaveTimeoutRef.current = setTimeout(() => {
       saveCurrentDraft();
-    }, 2000) as unknown as number;
+    }, 1000) as unknown as number;
   };
 
   const handleSave = async () => {
     await saveCurrentDraft();
   };
-
 
   const processImage = async (uri: string) => {
     try {
@@ -225,7 +262,7 @@ export default function ArticleScreen() {
           { resize: { width: 2500 } },
         ],
         {
-          compress: 0.85,       // 0–1, niedriger = kleinere Datei
+          compress: 0.85, // 0–1, niedriger = kleinere Datei
           format: ImageManipulator.SaveFormat.JPEG,
         }
       );
@@ -383,8 +420,9 @@ export default function ArticleScreen() {
       setIsPublishing(true);
       setPublishStatusText('Artikel wird vorbereitet…');
 
-      // 1) Plaintext erzeugen
-      const plain = htmlToPlainText(draft.contentHtml);
+      // 1) HTML für Upload sanitisieren und Plaintext erzeugen
+      const sanitizedHtml = sanitizeHtmlForUpload(draft.contentHtml ?? '');
+      const plain = htmlToPlainText(sanitizedHtml);
 
       // 2) KI verfügbar?
       const nativeAvailable = await LocalAISummarizer.isAvailable();
@@ -407,7 +445,7 @@ export default function ArticleScreen() {
       const payloadItem: ArticlePayload = {
         title: draft.title,
         teaser: meta.teaser,
-        article: draft.contentHtml,
+        article: sanitizedHtml,
         metaTitle: meta.metaTitle,
         metaDescription: meta.metaDescription,
         dateShow: formatDateShow(draft.publishedAt),
@@ -439,12 +477,15 @@ export default function ArticleScreen() {
         // Draft im UI leeren
         setDraft(emptyDraft);
         setDraftDirty(false);
+        lastSavedKeyRef.current = computeDraftKey(emptyDraft);
 
         Alert.alert('Erfolgreich', 'Artikel wurde veröffentlicht und lokaler Entwurf gelöscht.');
       } else {
+        console.warn('Upload failed', result.status, result.body);
         setPublishStatusText(`Fehler beim Senden (${result.status})`);
-        Alert.alert('Fehler', 'Der Upload ist fehlgeschlagen. Überprüfe die Server-Antwort.');
+        Alert.alert('Fehler', 'Der Upload ist fehlgeschlagen. Server antwortet: ' + String(result.body));
       }
+
     } catch (e) {
       console.error('Publish error:', e);
       Alert.alert('Fehler', 'Beim Veröffentlichen ist ein Fehler aufgetreten.');
@@ -465,11 +506,11 @@ export default function ArticleScreen() {
     try {
       setIsPublishing(true);
       setPublishStatusText('Artikel wird gesendet…');
-
+      const sanitizedHtml = sanitizeHtmlForUpload(draft.contentHtml ?? '');
       const payloadItem: ArticlePayload = {
         title: draft.title,
         teaser: manualMeta.teaser,
-        article: draft.contentHtml,
+        article: sanitizedHtml,
         metaTitle: manualMeta.metaTitle,
         metaDescription: manualMeta.metaDescription,
         dateShow: formatDateShow(draft.publishedAt),
@@ -496,6 +537,7 @@ export default function ArticleScreen() {
 
         setDraft(emptyDraft);
         setDraftDirty(false);
+        lastSavedKeyRef.current = computeDraftKey(emptyDraft);
 
         Alert.alert('Erfolgreich', 'Artikel wurde veröffentlicht und lokaler Entwurf gelöscht.');
       } else {
@@ -593,9 +635,7 @@ export default function ArticleScreen() {
 
             <TouchableOpacity style={styles.dateButton} onPress={openDatePicker}>
               <Text style={styles.dateButtonText}>
-                {draft.publishedAt
-                  ? formatDate(draft.publishedAt)
-                  : 'Datum setzen'}
+                {draft.publishedAt ? formatDate(draft.publishedAt) : 'Datum setzen'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -610,14 +650,24 @@ export default function ArticleScreen() {
               borderWidth: 1,
             }}
           >
-            <LexicalDomEditor
-              value={draft.contentHtml}
-              onChange={html => {
-                setDraft(prev => ({ ...prev, contentHtml: html }));
-                scheduleAutoSave();
-              }}
-              dom={{ style: { height: 250 } }}
-            />
+          <LexicalDomEditor
+            value={draft.contentHtml}
+            onChange={html => {
+              if (changeDebounceRef.current) {
+                clearTimeout(changeDebounceRef.current);
+              }
+              // @ts-ignore
+              changeDebounceRef.current = setTimeout(() => {
+                setDraft(prev => {
+                  if (prev.contentHtml === html) return prev;
+                  lastContentRef.current = html;
+                  scheduleAutoSave();
+                  return { ...prev, contentHtml: html };
+                });
+              }, 40) as unknown as number;
+            }}
+            dom={{ style: { height: 250 } }}
+          />
           </View>
 
           <View style={{ marginBottom: 16 }}>
@@ -676,9 +726,7 @@ export default function ArticleScreen() {
                       scheduleAutoSave();
                     }}
                   >
-                    <Text style={{ color: '#cc0000', fontSize: 12 }}>
-                      Bild entfernen
-                    </Text>
+                    <Text style={{ color: '#cc0000', fontSize: 12 }}>Bild entfernen</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -687,35 +735,25 @@ export default function ArticleScreen() {
 
           <View style={{ marginTop: 0, alignItems: 'flex-end' }}>
             <TouchableOpacity onPress={handleSave}>
-              <Text style={{ color: '#0a7ea4', fontWeight: '600' }}>
-                Entwurf speichern
-              </Text>
+              <Text style={{ color: '#0a7ea4', fontWeight: '600' }}>Entwurf speichern</Text>
             </TouchableOpacity>
           </View>
 
           {/* Publish Button */}
           <View style={{ marginTop: 16, alignItems: 'flex-end' }}>
             <TouchableOpacity onPress={handlePublish}>
-              <Text style={{ color: '#0a7ea4', fontWeight: '700' }}>
-                Artikel veröffentlichen
-              </Text>
+              <Text style={{ color: '#0a7ea4', fontWeight: '700' }}>Artikel veröffentlichen</Text>
             </TouchableOpacity>
           </View>
         </>
       ) : (
-        <Text style={{ color: '#999' }}>
-          Bitte eine Website und ein Archiv auswählen.
-        </Text>
+        <Text style={{ color: '#999' }}>Bitte eine Website und ein Archiv auswählen.</Text>
       )}
 
       <DateTimePickerModal
         isVisible={showDatePicker}
         mode="date"
-        date={
-          draft.publishedAt
-            ? new Date(draft.publishedAt)
-            : tempDate ?? new Date()
-        }
+        date={draft.publishedAt ? new Date(draft.publishedAt) : tempDate ?? new Date()}
         onConfirm={handleConfirmDate}
         onCancel={handleCancelDate}
       />
@@ -724,9 +762,7 @@ export default function ArticleScreen() {
       {isPublishing && (
         <View style={styles.publishOverlay}>
           <ActivityIndicator size="large" color="#0a7ea4" />
-          <Text style={{ color: '#fff', marginTop: 8 }}>
-            {publishStatusText ?? 'Bitte warten…'}
-          </Text>
+          <Text style={{ color: '#fff', marginTop: 8 }}>{publishStatusText ?? 'Bitte warten…'}</Text>
         </View>
       )}
 
