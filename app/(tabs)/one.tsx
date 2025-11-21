@@ -1,5 +1,6 @@
 // app/(tabs)/one.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -102,23 +103,31 @@ export default function ArticleScreen() {
     lastContentRef.current = draft.contentHtml ?? '';
   }, [draft.contentHtml]);
 
-  // Websites laden
-  useEffect(() => {
-    const loadSettings = async () => {
-      const storedWebsites = await loadWebsites();
-      setWebsites(storedWebsites);
+  // === NEU: Lade Websites bei jedem Fokus des Tabs ===
+  useFocusEffect(
+    useCallback(() => {
+      const loadSettings = async () => {
+        setLoading(true);
+        try {
+          const storedWebsites = await loadWebsites();
+          setWebsites(storedWebsites);
 
-      const firstWebsite = storedWebsites[0] ?? null;
-      const firstWebsiteId = firstWebsite?.id ?? null;
-      const firstArchiveId = firstWebsite?.archives[0]?.id ?? null;
+          const firstWebsite = storedWebsites[0] ?? null;
+          const firstWebsiteId = firstWebsite?.id ?? null;
+          const firstArchiveId = firstWebsite?.archives[0]?.id ?? null;
 
-      setSelectedWebsiteId(firstWebsiteId);
-      setSelectedArchiveId(firstArchiveId);
-      setLoading(false);
-    };
+          setSelectedWebsiteId(firstWebsiteId);
+          setSelectedArchiveId(firstArchiveId);
+        } catch (err) {
+          console.error('Fehler beim Laden der Webseiten:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    loadSettings();
-  }, []);
+      void loadSettings();
+    }, [])
+  );
 
   // Draft laden, wenn Website/Archiv wechselt
   useEffect(() => {
@@ -581,6 +590,14 @@ export default function ArticleScreen() {
     setIsPublishing(false);
     setPublishStatusText(null);
   };
+
+  if (loading) {
+    return (
+      <View style={[globalStyles.screenContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   return (
     <ScrollView
