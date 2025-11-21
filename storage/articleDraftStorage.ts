@@ -53,3 +53,19 @@ export async function loadDraft(
     return null;
   }
 }
+
+/**
+ * Löscht den gespeicherten Draft für die gegebene Website+Archive-Kombination.
+ */
+export async function deleteDraft(
+  websiteId: string,
+  archiveId: string
+): Promise<void> {
+  try {
+    const key = getDraftStorageKey(websiteId, archiveId);
+    await AsyncStorage.removeItem(key);
+    console.log(`Draft gelöscht: ${key}`);
+  } catch (error) {
+    console.error('Fehler beim Löschen des Drafts:', error);
+  }
+}

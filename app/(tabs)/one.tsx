@@ -2,8 +2,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
+  ActivityIndicator,
   Alert,
+  Button,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,21 +16,27 @@ import {
 } from 'react-native';
 
 import { AppDropdown } from '@/components/AppDropdown';
-import {
-  ArticleDraft,
-  loadDraft,
-  saveDraft,
-} from '@/storage/articleDraftStorage';
-import {
-  ArchiveConfig,
-  loadWebsites,
-  WebsiteConfig,
-} from '@/storage/settingsStorage';
 import { globalStyles } from '@/styles/globalStyles';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import LexicalDomEditor from '../../components/dom/LexicalDomEditor';
+import {
+  ArticleDraft,
+  deleteDraft,
+  loadDraft,
+  saveDraft,
+} from '../../storage/articleDraftStorage';
+import {
+  ArchiveConfig,
+  loadWebsites,
+  WebsiteConfig,
+} from '../../storage/settingsStorage';
+
+// Neue Imports
+import { GeneratedMeta, LocalAISummarizer } from '../services/LocalAISummarizer';
+import { ArticlePayload, uploadToContao } from '../services/uploadToContao';
+import { htmlToPlainText } from '../utils/htmlToPlainText';
 
 export default function ArticleScreen() {
   const [websites, setWebsites] = useState<WebsiteConfig[]>([]);
@@ -49,6 +58,27 @@ export default function ArticleScreen() {
   const autoSaveTimeoutRef = useRef<number | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
+
+  // --- Neuer State für Publishing ---
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishStatusText, setPublishStatusText] = useState<string | null>(null);
+
+  // Modal für manuelle Meta-Eingabe (wenn keine native KI vorhanden)
+  const [showManualMetaModal, setShowManualMetaModal] = useState(false);
+  const [manualMeta, setManualMeta] = useState<GeneratedMeta>({
+    metaTitle: '',
+    metaDescription: '',
+    teaser: '',
+  });
+
+  const emptyDraft: ArticleDraft = {
+    title: '',
+    contentHtml: '',
+    publishedAt: null,
+    keywords: '',
+    image: null,
+  };
+
 
   // Websites laden
   useEffect(() => {
@@ -118,10 +148,14 @@ export default function ArticleScreen() {
   };
 
   const handleConfirmDate = async (selectedDate: Date) => {
+    // Speichere das Datum als lokale Mitternachtszeit (lokal) und konvertiere zu ISO.
+    // So bleibt dateShow beim späteren Parsen lokal 00:00:00.
     const year = selectedDate.getFullYear();
-    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(selectedDate.getDate()).padStart(2, '0');
-    const iso = `${year}-${month}-${day}T00:00:00.000Z`;
+    const monthIndex = selectedDate.getMonth(); // 0-basiert
+    const day = selectedDate.getDate();
+
+    const localMidnight = new Date(year, monthIndex, day, 0, 0, 0, 0);
+    const iso = localMidnight.toISOString();
 
     const nextDraft = { ...draft, publishedAt: iso };
     setDraft(nextDraft);
@@ -187,7 +221,7 @@ export default function ArticleScreen() {
       const manipulated = await ImageManipulator.manipulateAsync(
         uri,
         [
-          // Auf max. 1600 px an der längeren Seite skalieren
+          // Auf max. 2500 px an der längeren Seite skalieren
           { resize: { width: 2500 } },
         ],
         {
@@ -310,6 +344,181 @@ export default function ArticleScreen() {
   const selectedWebsite = websites.find(w => w.id === selectedWebsiteId) ?? null;
   const archives: ArchiveConfig[] = selectedWebsite?.archives ?? [];
   const selectedArchive = archives.find(a => a.id === selectedArchiveId) ?? null;
+
+  // Hilfs-Funktion: publishedAt (ISO) -> "YYYY-MM-DD HH:mm:SS"
+  const formatDateShow = (iso: string | null): string | null => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+  };
+
+  // --- Publish-Flow ---
+  const handlePublish = async () => {
+    // Minimalanforderung: Titel + Inhalt
+    if (!draft.title || draft.title.trim().length === 0) {
+      Alert.alert('Fehler', 'Bitte gib einen Titel ein.');
+      return;
+    }
+    if (!draft.contentHtml || draft.contentHtml.trim().length === 0) {
+      Alert.alert('Fehler', 'Bitte füge Inhalt zum Artikel hinzu.');
+      return;
+    }
+    if (!selectedWebsite || !selectedArchive) {
+      Alert.alert('Fehler', 'Bitte wähle Website und Archiv aus.');
+      return;
+    }
+
+    // Speichere finalen Entwurf vor Upload (optional)
+    if (hasDraftContent(draft)) {
+      await saveCurrentDraft();
+    }
+
+    try {
+      setIsPublishing(true);
+      setPublishStatusText('Artikel wird vorbereitet…');
+
+      // 1) Plaintext erzeugen
+      const plain = htmlToPlainText(draft.contentHtml);
+
+      // 2) KI verfügbar?
+      const nativeAvailable = await LocalAISummarizer.isAvailable();
+
+      let meta: GeneratedMeta;
+      if (nativeAvailable) {
+        setPublishStatusText('Meta-Daten werden generiert…');
+        meta = await LocalAISummarizer.generate(draft.title, plain);
+      } else {
+        // Fallback: wir erzeugen initiale Werte per JS-Dummy, aber zeigen Modal für manuelles Editieren
+        setPublishStatusText('Meta-Daten (manuell) vorbereiten…');
+        const generated = await LocalAISummarizer.generate(draft.title, plain);
+        setManualMeta(generated);
+        setShowManualMetaModal(true);
+        // Warten, bis Nutzer Modal bestätigt oder abbricht
+        return;
+      }
+
+      // 3) Payload zusammenbauen
+      const payloadItem: ArticlePayload = {
+        title: draft.title,
+        teaser: meta.teaser,
+        article: draft.contentHtml,
+        metaTitle: meta.metaTitle,
+        metaDescription: meta.metaDescription,
+        dateShow: formatDateShow(draft.publishedAt),
+        keywords: draft.keywords ?? '',
+        imageAlt: draft.image?.alt ?? '',
+      };
+
+      // 4) Upload starten
+      setPublishStatusText('Artikel wird gesendet…');
+
+      const endpoint = `${selectedWebsite.baseUrl.replace(/\/$/, '')}/newspullimport`;
+      const token = selectedArchive.apiToken ?? '';
+
+      const result = await uploadToContao(payloadItem, draft.image?.uri ?? null, token, endpoint);
+
+      if (result.ok) {
+        setPublishStatusText('Artikel übertragen ✅');
+
+        // Draft löschen und UI leeren
+        try {
+          if (selectedWebsiteId && selectedArchiveId) {
+            await deleteDraft(selectedWebsiteId, selectedArchiveId);
+            console.log('Lokaler Draft gelöscht nach erfolgreichem Upload.');
+          }
+        } catch (err) {
+          console.warn('Fehler beim Löschen des Drafts:', err);
+        }
+
+        // Draft im UI leeren
+        setDraft(emptyDraft);
+        setDraftDirty(false);
+
+        Alert.alert('Erfolgreich', 'Artikel wurde veröffentlicht und lokaler Entwurf gelöscht.');
+      } else {
+        setPublishStatusText(`Fehler beim Senden (${result.status})`);
+        Alert.alert('Fehler', 'Der Upload ist fehlgeschlagen. Überprüfe die Server-Antwort.');
+      }
+    } catch (e) {
+      console.error('Publish error:', e);
+      Alert.alert('Fehler', 'Beim Veröffentlichen ist ein Fehler aufgetreten.');
+    } finally {
+      // kurz Status anzeigen, dann schließen
+      setTimeout(() => {
+        setIsPublishing(false);
+        setPublishStatusText(null);
+      }, 1500);
+    }
+  };
+
+  // Callback: Nutzer bestätigt manuelle Meta-Eingabe im Modal
+  const handleConfirmManualMeta = async () => {
+    setShowManualMetaModal(false);
+
+    // Verwende manuelle Meta und fahre mit Upload fort
+    try {
+      setIsPublishing(true);
+      setPublishStatusText('Artikel wird gesendet…');
+
+      const payloadItem: ArticlePayload = {
+        title: draft.title,
+        teaser: manualMeta.teaser,
+        article: draft.contentHtml,
+        metaTitle: manualMeta.metaTitle,
+        metaDescription: manualMeta.metaDescription,
+        dateShow: formatDateShow(draft.publishedAt),
+        keywords: draft.keywords ?? '',
+        imageAlt: draft.image?.alt ?? '',
+      };
+
+      const endpoint = `${selectedWebsite!.baseUrl.replace(/\/$/, '')}/newspullimport`;
+      const token = selectedArchive!.apiToken ?? '';
+
+      const result = await uploadToContao(payloadItem, draft.image?.uri ?? null, token, endpoint);
+
+      if (result.ok) {
+        setPublishStatusText('Artikel übertragen ✅');
+
+        try {
+          if (selectedWebsiteId && selectedArchiveId) {
+            await deleteDraft(selectedWebsiteId, selectedArchiveId);
+            console.log('Lokaler Draft gelöscht nach erfolgreichem Upload (manuelle Meta).');
+          }
+        } catch (err) {
+          console.warn('Fehler beim Löschen des Drafts:', err);
+        }
+
+        setDraft(emptyDraft);
+        setDraftDirty(false);
+
+        Alert.alert('Erfolgreich', 'Artikel wurde veröffentlicht und lokaler Entwurf gelöscht.');
+      } else {
+        setPublishStatusText(`Fehler beim Senden (${result.status})`);
+        Alert.alert('Fehler', 'Der Upload ist fehlgeschlagen. Überprüfe die Server-Antwort.');
+      }
+    } catch (e) {
+      console.error('Publish manual error:', e);
+      Alert.alert('Fehler', 'Beim Veröffentlichen ist ein Fehler aufgetreten.');
+    } finally {
+      setTimeout(() => {
+        setIsPublishing(false);
+        setPublishStatusText(null);
+      }, 1500);
+    }
+  };
+
+  // Callback: Nutzer bricht manuelle Eingabe ab
+  const handleCancelManualMeta = () => {
+    setShowManualMetaModal(false);
+    setIsPublishing(false);
+    setPublishStatusText(null);
+  };
 
   return (
     <ScrollView
@@ -483,6 +692,15 @@ export default function ArticleScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {/* Publish Button */}
+          <View style={{ marginTop: 16, alignItems: 'flex-end' }}>
+            <TouchableOpacity onPress={handlePublish}>
+              <Text style={{ color: '#0a7ea4', fontWeight: '700' }}>
+                Artikel veröffentlichen
+              </Text>
+            </TouchableOpacity>
+          </View>
         </>
       ) : (
         <Text style={{ color: '#999' }}>
@@ -501,6 +719,55 @@ export default function ArticleScreen() {
         onConfirm={handleConfirmDate}
         onCancel={handleCancelDate}
       />
+
+      {/* Publishing Overlay / Status */}
+      {isPublishing && (
+        <View style={styles.publishOverlay}>
+          <ActivityIndicator size="large" color="#0a7ea4" />
+          <Text style={{ color: '#fff', marginTop: 8 }}>
+            {publishStatusText ?? 'Bitte warten…'}
+          </Text>
+        </View>
+      )}
+
+      {/* Modal: manuelle Meta-Eingabe (wenn native KI nicht verfügbar) */}
+      <Modal visible={showManualMetaModal} animationType="slide" transparent={true}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer}>
+            <Text style={{ fontWeight: '700', marginBottom: 8 }}>Meta-Felder bearbeiten</Text>
+
+            <Text style={globalStyles.label}>Meta Title</Text>
+            <TextInput
+              style={globalStyles.input}
+              value={manualMeta.metaTitle}
+              onChangeText={metaTitle => setManualMeta(prev => ({ ...prev, metaTitle }))}
+            />
+
+            <Text style={globalStyles.label}>Meta Description (140–160 Zeichen empfohlen)</Text>
+            <TextInput
+              style={[globalStyles.input, { height: 90 }]}
+              multiline
+              value={manualMeta.metaDescription}
+              onChangeText={metaDescription => setManualMeta(prev => ({ ...prev, metaDescription }))}
+            />
+
+            <Text style={globalStyles.label}>Teaser (250–400 Zeichen empfohlen)</Text>
+            <TextInput
+              style={[globalStyles.input, { height: 120 }]}
+              multiline
+              value={manualMeta.teaser}
+              onChangeText={teaser => setManualMeta(prev => ({ ...prev, teaser }))}
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+              <View style={{ marginRight: 8 }}>
+                <Button title="Abbrechen" onPress={handleCancelManualMeta} />
+              </View>
+              <Button title="Veröffentlichen" onPress={handleConfirmManualMeta} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -531,5 +798,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#333',
     fontWeight: '500',
+  },
+  publishOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 24,
+    marginHorizontal: 16,
+    backgroundColor: '#0a7ea4',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    maxHeight: '90%',
   },
 });
