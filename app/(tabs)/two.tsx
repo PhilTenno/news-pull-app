@@ -137,7 +137,6 @@ export default function SettingsScreen() {
       contentContainerStyle={{ paddingBottom: 24 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={globalStyles.screenTitle}>Einstellungen</Text>
 
       {/* Website-Auswahl */}
       {websites.length === 0 ? (
@@ -251,7 +250,7 @@ export default function SettingsScreen() {
       <Text style={globalStyles.label}>Webseiten-Name</Text>
       <TextInput
         style={globalStyles.input}
-        placeholder="z.B. Website 1, Mandantenportal, Blog"
+        placeholder="z.B. MeinBlog, Firmenname"
         value={newWebsiteName}
         onChangeText={setNewWebsiteName}
       />

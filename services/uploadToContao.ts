@@ -44,9 +44,9 @@ export async function uploadToContao(
       type: mime,
     } as any);
 
-    console.log('uploadToContao - appended image:', filename, mime);
+    //-> console.log('uploadToContao - appended image:', filename, mime);
   } else {
-    console.log('uploadToContao - no image attached, sending payload as form-field');
+    //-> console.log('uploadToContao - no image attached, sending payload as form-field');
   }
 
   try {
@@ -66,8 +66,8 @@ export async function uploadToContao(
       body = await resp.text();
     }
 
-    console.log('uploadToContao - response status:', resp.status);
-    console.log('uploadToContao - response body:', body);
+    //--> console.log('uploadToContao - response status:', resp.status);
+    //-> console.log('uploadToContao - response body:', body);
 
     return { ok: resp.ok, status: resp.status, body };
   } catch (e) {

@@ -53,12 +53,14 @@ export default function ArticleScreen() {
     image: null,
   });
 
-  const changeDebounceRef = useRef<number | null>(null);
-  // Kennzeichnet, ob es ungespeicherte Änderungen gibt (für spätere UI-Anzeige gedacht)
+  // Kennzeichnet, ob es ungespeicherte Änderungen gibt
   const [draftDirty, setDraftDirty] = useState(false);
 
   const autoSaveTimeoutRef = useRef<number | null>(null);
+
+  // Date / Time Picker states
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
 
   // --- Neuer State für Publishing ---
@@ -83,10 +85,8 @@ export default function ArticleScreen() {
 
   // --- Guards / refs to avoid update loops ---
   const lastContentRef = useRef<string>(draft.contentHtml ?? '');
-  // lastSavedKeyRef speichert eine Signatur des zuletzt gespeicherten Drafts
   const lastSavedKeyRef = useRef<string>('');
 
-  // Hilfsfunktion: erzeugt einfachen Key zur Vergleichsprüfung
   const computeDraftKey = (d: ArticleDraft) => {
     return [
       d.title ?? '',
@@ -135,7 +135,6 @@ export default function ArticleScreen() {
         image: toSet.image ?? null,
       });
 
-      // initialen savedKey setzen, damit scheduleAutoSave direkt erkennt, ob Änderung vorliegt
       lastSavedKeyRef.current = computeDraftKey({
         ...toSet,
         keywords: toSet.keywords ?? '',
@@ -164,7 +163,15 @@ export default function ArticleScreen() {
     return `${day}.${month}.${year}`;
   };
 
-  // Datepicker öffnen/schließen
+  // Uhrzeit formatieren (z.B. "13:45")
+  const formatTime = (isoString: string): string => {
+    const date = new Date(isoString);
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  };
+
+  // Datepicker öffnen
   const openDatePicker = () => {
     if (draft.publishedAt) {
       setTempDate(new Date(draft.publishedAt));
@@ -174,21 +181,57 @@ export default function ArticleScreen() {
     setShowDatePicker(true);
   };
 
-  const handleConfirmDate = async (selectedDate: Date) => {
-    // Speichere das Datum als lokale Mitternachtszeit (lokal) und konvertiere zu ISO.
-    // So bleibt dateShow beim späteren Parsen lokal 00:00:00.
-    const year = selectedDate.getFullYear();
-    const monthIndex = selectedDate.getMonth(); // 0-basiert
-    const day = selectedDate.getDate();
+  // Timepicker öffnen
+  const openTimePicker = () => {
+    if (draft.publishedAt) {
+      setTempDate(new Date(draft.publishedAt));
+    } else {
+      setTempDate(new Date());
+    }
+    setShowTimePicker(true);
+  };
 
-    const localMidnight = new Date(year, monthIndex, day, 0, 0, 0, 0);
-    const iso = localMidnight.toISOString();
+  // Date confirm: behalte vorhandene Zeit (falls gesetzt), sonst aktuelle Zeit
+  const handleConfirmDate = async (selectedDate: Date) => {
+    const existing = draft.publishedAt ? new Date(draft.publishedAt) : new Date();
+    const newDate = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      selectedDate.getDate(),
+      existing.getHours(),
+      existing.getMinutes(),
+      existing.getSeconds(),
+      0
+    );
+    const iso = newDate.toISOString();
 
     const nextDraft = { ...draft, publishedAt: iso };
     setDraft(nextDraft);
     setShowDatePicker(false);
 
-    // Nach expliziter Bestätigung direkt speichern
+    if (hasDraftContent(nextDraft)) {
+      await saveCurrentDraft(nextDraft);
+    }
+  };
+
+  // Time confirm: behalte vorhandenes Datum (falls gesetzt), sonst heute
+  const handleConfirmTime = async (selectedTime: Date) => {
+    const existing = draft.publishedAt ? new Date(draft.publishedAt) : new Date();
+    const newDate = new Date(
+      existing.getFullYear(),
+      existing.getMonth(),
+      existing.getDate(),
+      selectedTime.getHours(),
+      selectedTime.getMinutes(),
+      0,
+      0
+    );
+    const iso = newDate.toISOString();
+
+    const nextDraft = { ...draft, publishedAt: iso };
+    setDraft(nextDraft);
+    setShowTimePicker(false);
+
     if (hasDraftContent(nextDraft)) {
       await saveCurrentDraft(nextDraft);
     }
@@ -196,6 +239,10 @@ export default function ArticleScreen() {
 
   const handleCancelDate = () => {
     setShowDatePicker(false);
+  };
+
+  const handleCancelTime = () => {
+    setShowTimePicker(false);
   };
 
   const hasDraftContent = (d: ArticleDraft) => {
@@ -212,9 +259,8 @@ export default function ArticleScreen() {
     if (!selectedWebsiteId || !selectedArchiveId) return;
     try {
       await saveDraft(selectedWebsiteId, selectedArchiveId, d);
-      //-> console.log('Draft gespeichert');
+      console.log('Draft gespeichert');
       setDraftDirty(false);
-      // saved key aktualisieren
       lastSavedKeyRef.current = computeDraftKey(d);
     } catch (e) {
       console.error('Fehler beim Speichern:', e);
@@ -222,28 +268,24 @@ export default function ArticleScreen() {
   };
 
   const scheduleAutoSave = () => {
-    // Nur Auto-Save, wenn es sich lohnt
     if (!hasDraftContent(draft)) {
       return;
     }
 
-    // Prüfen, ob sich der Draft seit dem letzten Save wirklich geändert hat
     const currentKey = computeDraftKey(draft);
     if (currentKey === lastSavedKeyRef.current) {
-      // nichts zu speichern
       setDraftDirty(false);
       return;
     }
 
     setDraftDirty(true);
 
-    // alten Timer löschen
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    // neuen Timer setzen (jetzt 1000 ms statt 2000 ms)
-    // @ts-ignore - RN setTimeout returns number
+    // Reaktiver: 1000ms
+    // @ts-ignore
     autoSaveTimeoutRef.current = setTimeout(() => {
       saveCurrentDraft();
     }, 1000) as unknown as number;
@@ -257,12 +299,9 @@ export default function ArticleScreen() {
     try {
       const manipulated = await ImageManipulator.manipulateAsync(
         uri,
-        [
-          // Auf max. 2500 px an der längeren Seite skalieren
-          { resize: { width: 2500 } },
-        ],
+        [{ resize: { width: 2500 } }],
         {
-          compress: 0.85, // 0–1, niedriger = kleinere Datei
+          compress: 0.85,
           format: ImageManipulator.SaveFormat.JPEG,
         }
       );
@@ -274,7 +313,7 @@ export default function ArticleScreen() {
     }
   };
 
-  // Bild aus Galerie
+  // Bild-Funktionen (gleich wie vorher) ...
   const pickImageFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -288,7 +327,7 @@ export default function ArticleScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
-      quality: 1, // wir komprimieren später selbst
+      quality: 1,
     });
 
     if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -296,8 +335,6 @@ export default function ArticleScreen() {
     }
 
     const asset = result.assets[0];
-
-    // Bild vor dem Speichern verkleinern/komprimieren
     const processedUri = await processImage(asset.uri);
 
     setDraft(prev => ({
@@ -310,7 +347,6 @@ export default function ArticleScreen() {
     scheduleAutoSave();
   };
 
-  // Bild mit Kamera aufnehmen
   const pickImageFromCamera = async () => {
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
@@ -326,7 +362,7 @@ export default function ArticleScreen() {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
-        quality: 1, // volle Qualität, wir komprimieren danach
+        quality: 1,
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -334,8 +370,6 @@ export default function ArticleScreen() {
       }
 
       const asset = result.assets[0];
-
-      // Bild vor dem Speichern verkleinern/komprimieren
       const processedUri = await processImage(asset.uri);
 
       setDraft(prev => ({
@@ -359,7 +393,7 @@ export default function ArticleScreen() {
     }
   };
 
-  // Ein Button → Auswahl Kamera oder Galerie
+  // Photo ActionSheet
   const handlePhotoButtonPress = () => {
     ActionSheetIOS.showActionSheetWithOptions(
       {
@@ -395,9 +429,8 @@ export default function ArticleScreen() {
     return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
   };
 
-  // --- Publish-Flow ---
+  // --- Publish-Flow (unverändert, sanitize beim Publish) ---
   const handlePublish = async () => {
-    // Minimalanforderung: Titel + Inhalt
     if (!draft.title || draft.title.trim().length === 0) {
       Alert.alert('Fehler', 'Bitte gib einen Titel ein.');
       return;
@@ -411,7 +444,6 @@ export default function ArticleScreen() {
       return;
     }
 
-    // Speichere finalen Entwurf vor Upload (optional)
     if (hasDraftContent(draft)) {
       await saveCurrentDraft();
     }
@@ -420,11 +452,9 @@ export default function ArticleScreen() {
       setIsPublishing(true);
       setPublishStatusText('Artikel wird vorbereitet…');
 
-      // 1) HTML für Upload sanitisieren und Plaintext erzeugen
       const sanitizedHtml = sanitizeHtmlForUpload(draft.contentHtml ?? '');
       const plain = htmlToPlainText(sanitizedHtml);
 
-      // 2) KI verfügbar?
       const nativeAvailable = await LocalAISummarizer.isAvailable();
 
       let meta: GeneratedMeta;
@@ -432,16 +462,13 @@ export default function ArticleScreen() {
         setPublishStatusText('Meta-Daten werden generiert…');
         meta = await LocalAISummarizer.generate(draft.title, plain);
       } else {
-        // Fallback: wir erzeugen initiale Werte per JS-Dummy, aber zeigen Modal für manuelles Editieren
         setPublishStatusText('Meta-Daten (manuell) vorbereiten…');
         const generated = await LocalAISummarizer.generate(draft.title, plain);
         setManualMeta(generated);
         setShowManualMetaModal(true);
-        // Warten, bis Nutzer Modal bestätigt oder abbricht
         return;
       }
 
-      // 3) Payload zusammenbauen
       const payloadItem: ArticlePayload = {
         title: draft.title,
         teaser: meta.teaser,
@@ -453,7 +480,6 @@ export default function ArticleScreen() {
         imageAlt: draft.image?.alt ?? '',
       };
 
-      // 4) Upload starten
       setPublishStatusText('Artikel wird gesendet…');
 
       const endpoint = `${selectedWebsite.baseUrl.replace(/\/$/, '')}/newspullimport`;
@@ -464,7 +490,6 @@ export default function ArticleScreen() {
       if (result.ok) {
         setPublishStatusText('Artikel übertragen ✅');
 
-        // Draft löschen und UI leeren
         try {
           if (selectedWebsiteId && selectedArchiveId) {
             await deleteDraft(selectedWebsiteId, selectedArchiveId);
@@ -474,7 +499,6 @@ export default function ArticleScreen() {
           console.warn('Fehler beim Löschen des Drafts:', err);
         }
 
-        // Draft im UI leeren
         setDraft(emptyDraft);
         setDraftDirty(false);
         lastSavedKeyRef.current = computeDraftKey(emptyDraft);
@@ -485,12 +509,10 @@ export default function ArticleScreen() {
         setPublishStatusText(`Fehler beim Senden (${result.status})`);
         Alert.alert('Fehler', 'Der Upload ist fehlgeschlagen. Server antwortet: ' + String(result.body));
       }
-
     } catch (e) {
       console.error('Publish error:', e);
       Alert.alert('Fehler', 'Beim Veröffentlichen ist ein Fehler aufgetreten.');
     } finally {
-      // kurz Status anzeigen, dann schließen
       setTimeout(() => {
         setIsPublishing(false);
         setPublishStatusText(null);
@@ -498,11 +520,10 @@ export default function ArticleScreen() {
     }
   };
 
-  // Callback: Nutzer bestätigt manuelle Meta-Eingabe im Modal
+  // Manuelle Meta Bestätigung (unverändert)
   const handleConfirmManualMeta = async () => {
     setShowManualMetaModal(false);
 
-    // Verwende manuelle Meta und fahre mit Upload fort
     try {
       setIsPublishing(true);
       setPublishStatusText('Artikel wird gesendet…');
@@ -555,7 +576,6 @@ export default function ArticleScreen() {
     }
   };
 
-  // Callback: Nutzer bricht manuelle Eingabe ab
   const handleCancelManualMeta = () => {
     setShowManualMetaModal(false);
     setIsPublishing(false);
@@ -568,8 +588,6 @@ export default function ArticleScreen() {
       contentContainerStyle={{ paddingBottom: 24 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={globalStyles.sectionTitle}>Archiv wählen</Text>
-
       {websites.length === 0 ? (
         <Text style={{ color: '#999', marginBottom: 16 }}>
           Noch keine Webseiten konfiguriert. Bitte im Tab "Einstellungen" anlegen.
@@ -619,7 +637,6 @@ export default function ArticleScreen() {
         </>
       )}
 
-      <Text style={globalStyles.sectionTitle}>Artikel</Text>
       {selectedWebsite && selectedArchive ? (
         <>
           <Text style={globalStyles.label}>Titel</Text>
@@ -631,13 +648,21 @@ export default function ArticleScreen() {
           />
 
           <View style={[styles.rowBetween, { marginTop: 20 }]}>
-            <Text style={globalStyles.label}>Inhalt</Text>
+            <Text style={globalStyles.label}>Artikel</Text>
 
-            <TouchableOpacity style={styles.dateButton} onPress={openDatePicker}>
-              <Text style={styles.dateButtonText}>
-                {draft.publishedAt ? formatDate(draft.publishedAt) : 'Datum setzen'}
-              </Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity style={[styles.dateButton, { marginRight: 8 }]} onPress={openDatePicker}>
+                <Text style={styles.dateButtonText}>
+                  {draft.publishedAt ? formatDate(draft.publishedAt) : 'Datum'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.dateButton} onPress={openTimePicker}>
+                <Text style={styles.dateButtonText}>
+                  {draft.publishedAt ? formatTime(draft.publishedAt) : 'Uhrzeit'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View
@@ -650,24 +675,20 @@ export default function ArticleScreen() {
               borderWidth: 1,
             }}
           >
-          <LexicalDomEditor
-            value={draft.contentHtml}
-            onChange={html => {
-              if (changeDebounceRef.current) {
-                clearTimeout(changeDebounceRef.current);
-              }
-              // @ts-ignore
-              changeDebounceRef.current = setTimeout(() => {
+            <LexicalDomEditor
+              value={draft.contentHtml}
+              onChange={html => {
+                // Atomarer functional setState mit Vergleich verhindert unnötige Updates
                 setDraft(prev => {
                   if (prev.contentHtml === html) return prev;
                   lastContentRef.current = html;
+                  // scheduleAutoSave nur auf echter Änderung
                   scheduleAutoSave();
                   return { ...prev, contentHtml: html };
                 });
-              }, 40) as unknown as number;
-            }}
-            dom={{ style: { height: 250 } }}
-          />
+              }}
+              dom={{ style: { height: 250 } }}
+            />
           </View>
 
           <View style={{ marginBottom: 16 }}>
@@ -758,6 +779,14 @@ export default function ArticleScreen() {
         onCancel={handleCancelDate}
       />
 
+      <DateTimePickerModal
+        isVisible={showTimePicker}
+        mode="time"
+        date={draft.publishedAt ? new Date(draft.publishedAt) : tempDate ?? new Date()}
+        onConfirm={handleConfirmTime}
+        onCancel={handleCancelTime}
+      />
+
       {/* Publishing Overlay / Status */}
       {isPublishing && (
         <View style={styles.publishOverlay}>
@@ -766,7 +795,7 @@ export default function ArticleScreen() {
         </View>
       )}
 
-      {/* Modal: manuelle Meta-Eingabe (wenn native KI nicht verfügbar) */}
+      {/* Modal: manuelle Meta-Eingabe */}
       <Modal visible={showManualMetaModal} animationType="slide" transparent={true}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalContainer}>

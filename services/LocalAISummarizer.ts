@@ -39,7 +39,7 @@ export const LocalAISummarizer = {
           teaser: trimTo(res?.teaser ?? (contentPlain ?? ''), 350),
         };
       } catch (e) {
-        console.warn('Native AISummarizer failed, falling back to JS:', e);
+        //-> console.warn('Native AISummarizer failed, falling back to JS:', e);
         // fallback to JS below
       }
     }
