@@ -5,7 +5,6 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
-  Button,
   Image,
   Modal,
   ScrollView,
@@ -22,6 +21,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import LexicalDomEditor from '../../components/dom/LexicalDomEditor';
+import AppButton from '../../components/ui/AppButton';
 import {
   ArticleDraft,
   deleteDraft,
@@ -33,12 +33,52 @@ import {
   loadWebsites,
   WebsiteConfig,
 } from '../../storage/settingsStorage';
+import { oneStyles } from '../../styles/one.styles';
 
 // Neue Imports
+import { Ionicons } from '@expo/vector-icons'; // Icon-Set (Expo)
 import { GeneratedMeta, LocalAISummarizer } from '../../services/LocalAISummarizer';
 import { ArticlePayload, uploadToContao } from '../../services/uploadToContao';
 import { sanitizeHtmlForUpload } from '../../utils/htmlSanitizeForUpload';
 import { htmlToPlainText } from '../../utils/htmlToPlainText';
+
+type SmallButtonProps = {
+  title?: string;
+  onPress?: () => void;
+  iconName?: React.ComponentProps<typeof Ionicons>['name'];
+  variant?: 'primary' | 'link' | 'danger';
+  style?: any;
+};
+
+function SmallButton({ title, onPress, iconName, variant = 'link', style }: SmallButtonProps) {
+  const isPrimary = variant === 'primary';
+  const isDanger = variant === 'danger';
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        oneStyles.smallBase,
+        isPrimary ? oneStyles.smallPrimary : isDanger ? oneStyles.smallDanger : oneStyles.smallLink,
+        style,
+      ]}
+      activeOpacity={0.8}
+    >
+      {iconName ? (
+        <Ionicons
+          name={iconName}
+          size={16}
+          color={isPrimary || isDanger ? '#fff' : '#0a7ea4'}
+          style={{ marginRight: title ? 8 : 0 }}
+        />
+      ) : null}
+      {title ? (
+        <Text style={isPrimary || isDanger ? oneStyles.smallTextLight : oneStyles.smallTextLink}>
+          {title}
+        </Text>
+      ) : null}
+    </TouchableOpacity>
+  );
+}
 
 export default function ArticleScreen() {
   const [websites, setWebsites] = useState<WebsiteConfig[]>([]);
@@ -54,21 +94,18 @@ export default function ArticleScreen() {
     image: null,
   });
 
-  // Kennzeichnet, ob es ungespeicherte Änderungen gibt
-  const [draftDirty, setDraftDirty] = useState(false);
+  const editorContentFlatten = StyleSheet.flatten(oneStyles.editorContent) || {};
 
+  const [draftDirty, setDraftDirty] = useState(false);
   const autoSaveTimeoutRef = useRef<number | null>(null);
 
-  // Date / Time Picker states
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date | null>(null);
 
-  // --- Neuer State für Publishing ---
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishStatusText, setPublishStatusText] = useState<string | null>(null);
 
-  // Modal für manuelle Meta-Eingabe (wenn keine native KI vorhanden)
   const [showManualMetaModal, setShowManualMetaModal] = useState(false);
   const [manualMeta, setManualMeta] = useState<GeneratedMeta>({
     metaTitle: '',
@@ -84,7 +121,6 @@ export default function ArticleScreen() {
     image: null,
   };
 
-  // --- Guards / refs to avoid update loops ---
   const lastContentRef = useRef<string>(draft.contentHtml ?? '');
   const lastSavedKeyRef = useRef<string>('');
 
@@ -98,12 +134,11 @@ export default function ArticleScreen() {
     ].join('|||');
   };
 
-  // Sync ref when draft.contentHtml changes from other sources
   useEffect(() => {
     lastContentRef.current = draft.contentHtml ?? '';
   }, [draft.contentHtml]);
 
-  // === NEU: Lade Websites bei jedem Fokus des Tabs ===
+  // Reload websites on focus
   useFocusEffect(
     useCallback(() => {
       const loadSettings = async () => {
@@ -129,7 +164,6 @@ export default function ArticleScreen() {
     }, [])
   );
 
-  // Draft laden, wenn Website/Archiv wechselt
   useEffect(() => {
     const loadCurrentDraft = async () => {
       if (!selectedWebsiteId || !selectedArchiveId) return;
@@ -151,10 +185,9 @@ export default function ArticleScreen() {
       });
     };
 
-    loadCurrentDraft();
+    void loadCurrentDraft();
   }, [selectedWebsiteId, selectedArchiveId]);
 
-  // Titel ändern
   const handleChangeDraftTitle = (title: string) => {
     setDraft(prev => {
       if (prev.title === title) return prev;
@@ -163,7 +196,6 @@ export default function ArticleScreen() {
     scheduleAutoSave();
   };
 
-  // Datum formatieren (z.B. "14.11.2025")
   const formatDate = (isoString: string): string => {
     const date = new Date(isoString);
     const day = String(date.getDate()).padStart(2, '0');
@@ -172,7 +204,6 @@ export default function ArticleScreen() {
     return `${day}.${month}.${year}`;
   };
 
-  // Uhrzeit formatieren (z.B. "13:45")
   const formatTime = (isoString: string): string => {
     const date = new Date(isoString);
     const hh = String(date.getHours()).padStart(2, '0');
@@ -180,27 +211,16 @@ export default function ArticleScreen() {
     return `${hh}:${mm}`;
   };
 
-  // Datepicker öffnen
   const openDatePicker = () => {
-    if (draft.publishedAt) {
-      setTempDate(new Date(draft.publishedAt));
-    } else {
-      setTempDate(new Date());
-    }
+    setTempDate(draft.publishedAt ? new Date(draft.publishedAt) : new Date());
     setShowDatePicker(true);
   };
 
-  // Timepicker öffnen
   const openTimePicker = () => {
-    if (draft.publishedAt) {
-      setTempDate(new Date(draft.publishedAt));
-    } else {
-      setTempDate(new Date());
-    }
+    setTempDate(draft.publishedAt ? new Date(draft.publishedAt) : new Date());
     setShowTimePicker(true);
   };
 
-  // Date confirm: behalte vorhandene Zeit (falls gesetzt), sonst aktuelle Zeit
   const handleConfirmDate = async (selectedDate: Date) => {
     const existing = draft.publishedAt ? new Date(draft.publishedAt) : new Date();
     const newDate = new Date(
@@ -223,7 +243,6 @@ export default function ArticleScreen() {
     }
   };
 
-  // Time confirm: behalte vorhandenes Datum (falls gesetzt), sonst heute
   const handleConfirmTime = async (selectedTime: Date) => {
     const existing = draft.publishedAt ? new Date(draft.publishedAt) : new Date();
     const newDate = new Date(
@@ -246,13 +265,8 @@ export default function ArticleScreen() {
     }
   };
 
-  const handleCancelDate = () => {
-    setShowDatePicker(false);
-  };
-
-  const handleCancelTime = () => {
-    setShowTimePicker(false);
-  };
+  const handleCancelDate = () => setShowDatePicker(false);
+  const handleCancelTime = () => setShowTimePicker(false);
 
   const hasDraftContent = (d: ArticleDraft) => {
     return (
@@ -293,7 +307,6 @@ export default function ArticleScreen() {
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    // Reaktiver: 1000ms
     // @ts-ignore
     autoSaveTimeoutRef.current = setTimeout(() => {
       saveCurrentDraft();
@@ -314,7 +327,6 @@ export default function ArticleScreen() {
           format: ImageManipulator.SaveFormat.JPEG,
         }
       );
-
       return manipulated.uri;
     } catch (e) {
       console.warn('Bildmanipulation fehlgeschlagen, verwende Original:', e);
@@ -322,7 +334,6 @@ export default function ArticleScreen() {
     }
   };
 
-  // Bild-Funktionen (gleich wie vorher) ...
   const pickImageFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -339,9 +350,7 @@ export default function ArticleScreen() {
       quality: 1,
     });
 
-    if (result.canceled || !result.assets || result.assets.length === 0) {
-      return;
-    }
+    if (result.canceled || !result.assets || result.assets.length === 0) return;
 
     const asset = result.assets[0];
     const processedUri = await processImage(asset.uri);
@@ -374,9 +383,7 @@ export default function ArticleScreen() {
         quality: 1,
       });
 
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        return;
-      }
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
 
       const asset = result.assets[0];
       const processedUri = await processImage(asset.uri);
@@ -402,7 +409,6 @@ export default function ArticleScreen() {
     }
   };
 
-  // Photo ActionSheet
   const handlePhotoButtonPress = () => {
     ActionSheetIOS.showActionSheetWithOptions(
       {
@@ -420,12 +426,10 @@ export default function ArticleScreen() {
     );
   };
 
-  // Berechnung der Selektion
   const selectedWebsite = websites.find(w => w.id === selectedWebsiteId) ?? null;
   const archives: ArchiveConfig[] = selectedWebsite?.archives ?? [];
   const selectedArchive = archives.find(a => a.id === selectedArchiveId) ?? null;
 
-  // Hilfs-Funktion: publishedAt (ISO) -> "YYYY-MM-DD HH:mm:SS"
   const formatDateShow = (iso: string | null): string | null => {
     if (!iso) return null;
     const d = new Date(iso);
@@ -438,7 +442,6 @@ export default function ArticleScreen() {
     return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
   };
 
-  // --- Publish-Flow (unverändert, sanitize beim Publish) ---
   const handlePublish = async () => {
     if (!draft.title || draft.title.trim().length === 0) {
       Alert.alert('Fehler', 'Bitte gib einen Titel ein.');
@@ -529,7 +532,6 @@ export default function ArticleScreen() {
     }
   };
 
-  // Manuelle Meta Bestätigung (unverändert)
   const handleConfirmManualMeta = async () => {
     setShowManualMetaModal(false);
 
@@ -602,7 +604,7 @@ export default function ArticleScreen() {
   return (
     <ScrollView
       style={globalStyles.screenContainer}
-      contentContainerStyle={{ paddingBottom: 24 }}
+      contentContainerStyle={oneStyles.containerContent}
       keyboardShouldPersistTaps="handled"
     >
       {websites.length === 0 ? (
@@ -611,8 +613,8 @@ export default function ArticleScreen() {
         </Text>
       ) : (
         <>
-          <View style={styles.row}>
-            <View style={styles.column}>
+          <View style={oneStyles.row}>
+            <View style={oneStyles.column}>
               <AppDropdown
                 label="Website"
                 placeholder="Website wählen..."
@@ -630,7 +632,7 @@ export default function ArticleScreen() {
                 }}
               />
             </View>
-            <View style={[styles.column, { marginLeft: 8 }]}>
+            <View style={[oneStyles.column, { marginLeft: 8 }]}>
               <AppDropdown
                 label="Archiv"
                 placeholder="Archiv wählen..."
@@ -664,51 +666,40 @@ export default function ArticleScreen() {
             onChangeText={handleChangeDraftTitle}
           />
 
-          <View style={[styles.rowBetween, { marginTop: 20 }]}>
+          <View style={[oneStyles.rowBetween, { marginTop: 20 }]}>
             <Text style={globalStyles.label}>Artikel</Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity style={[styles.dateButton, { marginRight: 8 }]} onPress={openDatePicker}>
-                <Text style={styles.dateButtonText}>
-                  {draft.publishedAt ? formatDate(draft.publishedAt) : 'Datum'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.dateButton} onPress={openTimePicker}>
-                <Text style={styles.dateButtonText}>
-                  {draft.publishedAt ? formatTime(draft.publishedAt) : 'Uhrzeit'}
-                </Text>
-              </TouchableOpacity>
+              <SmallButton
+                iconName="calendar-outline"
+                title={draft.publishedAt ? formatDate(draft.publishedAt) : 'Datum'}
+                onPress={openDatePicker}
+                style={{ marginRight: 8 }}
+              />
+              <SmallButton
+                iconName="time-outline"
+                title={draft.publishedAt ? formatTime(draft.publishedAt) : 'Uhrzeit'}
+                onPress={openTimePicker}
+              />
             </View>
           </View>
 
-          <View
-            style={{
-              marginTop: 12,
-              marginBottom: 16,
-              backgroundColor: '#fff',
-              borderRadius: 6,
-              borderColor: '#ccc',
-              borderWidth: 1,
-            }}
-          >
+          <View style={oneStyles.editorWrapper}>
             <LexicalDomEditor
               value={draft.contentHtml}
               onChange={html => {
-                // Atomarer functional setState mit Vergleich verhindert unnötige Updates
                 setDraft(prev => {
                   if (prev.contentHtml === html) return prev;
                   lastContentRef.current = html;
-                  // scheduleAutoSave nur auf echter Änderung
                   scheduleAutoSave();
                   return { ...prev, contentHtml: html };
                 });
               }}
-              dom={{ style: { height: 250 } }}
+              dom={{ style: { ...editorContentFlatten, height: 250 } }}
             />
           </View>
 
-          <View style={{ marginBottom: 16 }}>
+          <View style={oneStyles.keywordsContainer}>
             <Text style={globalStyles.label}>Artikel-Keywords</Text>
             <TextInput
               style={globalStyles.input}
@@ -722,31 +713,26 @@ export default function ArticleScreen() {
           </View>
 
           {/* Bild-Bereich */}
-          <View style={{ marginBottom: 16 }}>
-            <View style={styles.rowBetween}>
+          <View style={oneStyles.imageWrapper}>
+            <View style={oneStyles.rowBetween}>
               <Text style={globalStyles.label}>Bild</Text>
 
-              <TouchableOpacity onPress={handlePhotoButtonPress}>
-                <Text style={{ color: '#0a7ea4', fontWeight: '600' }}>
-                  {draft.image ? 'Foto austauschen' : 'Foto hinzufügen'}
-                </Text>
-              </TouchableOpacity>
+              <SmallButton
+                iconName="camera-outline"
+                title={draft.image ? 'Foto austauschen' : 'Foto hinzufügen'}
+                onPress={handlePhotoButtonPress}
+              />
             </View>
 
             {draft.image && (
-              <View style={{ marginTop: 8 }}>
+              <View style={oneStyles.imagePreview}>
                 <Image
                   source={{ uri: draft.image.uri }}
-                  style={{
-                    width: '100%',
-                    height: 180,
-                    borderRadius: 6,
-                    backgroundColor: '#eee',
-                  }}
+                  style={oneStyles.imageStyle}
                   resizeMode="cover"
                 />
                 <TextInput
-                  style={[globalStyles.input, { marginTop: 8 }]}
+                  style={[globalStyles.input, oneStyles.imageAltInput]}
                   placeholder="Kurze Bildbeschreibung einfügen"
                   value={draft.image.alt}
                   onChangeText={alt => {
@@ -757,31 +743,28 @@ export default function ArticleScreen() {
                     scheduleAutoSave();
                   }}
                 />
-                <View style={{ marginTop: 4, alignItems: 'flex-end' }}>
-                  <TouchableOpacity
+                <View style={oneStyles.imageRemoveRow}>
+                  <SmallButton
+                    iconName="trash-outline"
+                    title="Bild entfernen"
+                    variant="danger"
                     onPress={() => {
                       setDraft(prev => ({ ...prev, image: null }));
                       scheduleAutoSave();
                     }}
-                  >
-                    <Text style={{ color: '#cc0000', fontSize: 12 }}>Bild entfernen</Text>
-                  </TouchableOpacity>
+                  />
                 </View>
               </View>
             )}
           </View>
 
-          <View style={{ marginTop: 0, alignItems: 'flex-end' }}>
-            <TouchableOpacity onPress={handleSave}>
-              <Text style={{ color: '#0a7ea4', fontWeight: '600' }}>Entwurf speichern</Text>
-            </TouchableOpacity>
+          <View style={oneStyles.saveRow}>
+            <AppButton title="Entwurf speichern" variant="link" onPress={handleSave} />
           </View>
 
           {/* Publish Button */}
-          <View style={{ marginTop: 16, alignItems: 'flex-end' }}>
-            <TouchableOpacity onPress={handlePublish}>
-              <Text style={{ color: '#0a7ea4', fontWeight: '700' }}>Artikel veröffentlichen</Text>
-            </TouchableOpacity>
+          <View style={oneStyles.publishRow}>
+            <AppButton title="Artikel veröffentlichen" variant="primary" onPress={handlePublish} />
           </View>
         </>
       ) : (
@@ -804,18 +787,17 @@ export default function ArticleScreen() {
         onCancel={handleCancelTime}
       />
 
-      {/* Publishing Overlay / Status */}
       {isPublishing && (
-        <View style={styles.publishOverlay}>
-          <ActivityIndicator size="large" color="#0a7ea4" />
+        <View style={oneStyles.publishOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
           <Text style={{ color: '#fff', marginTop: 8 }}>{publishStatusText ?? 'Bitte warten…'}</Text>
         </View>
       )}
 
       {/* Modal: manuelle Meta-Eingabe */}
       <Modal visible={showManualMetaModal} animationType="slide" transparent={true}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContainer}>
+        <View style={oneStyles.modalBackdrop}>
+          <View style={oneStyles.modalContainer}>
             <Text style={{ fontWeight: '700', marginBottom: 8 }}>Meta-Felder bearbeiten</Text>
 
             <Text style={globalStyles.label}>Meta Title</Text>
@@ -843,9 +825,9 @@ export default function ArticleScreen() {
 
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
               <View style={{ marginRight: 8 }}>
-                <Button title="Abbrechen" onPress={handleCancelManualMeta} />
+                <AppButton title="Abbrechen" variant="link" onPress={handleCancelManualMeta} />
               </View>
-              <Button title="Veröffentlichen" onPress={handleConfirmManualMeta} />
+              <AppButton title="Veröffentlichen" variant="primary" onPress={handleConfirmManualMeta} />
             </View>
           </View>
         </View>
@@ -853,57 +835,3 @@ export default function ArticleScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  column: {
-    flex: 1,
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  dateButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  dateButtonText: {
-    fontSize: 13,
-    color: '#333',
-    fontWeight: '500',
-  },
-  publishOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 24,
-    marginHorizontal: 16,
-    backgroundColor: '#0a7ea4',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  modalContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    maxHeight: '90%',
-  },
-});

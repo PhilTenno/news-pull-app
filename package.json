@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo-google-fonts/roboto": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
     "@lexical/html": "^0.38.2",
     "@lexical/link": "^0.38.2",

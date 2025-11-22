@@ -2,19 +2,14 @@
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  Button,
   FlatList,
   Modal,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
-import { AppDropdown } from '@/components/AppDropdown';
-import { deleteDraft } from '@/storage/articleDraftStorage';
 import {
   ArchiveConfig,
   loadWebsites,
@@ -22,7 +17,11 @@ import {
   WebsiteConfig,
 } from '@/storage/settingsStorage';
 import { globalStyles } from '@/styles/globalStyles';
-import { settingsStyles } from '@/styles/settingsStyles';
+import { theme } from '@/styles/theme';
+import { twoStyles } from '@/styles/two.styles';
+import { AppDropdown } from '../../components/AppDropdown';
+import AppButton from '../../components/ui/AppButton';
+import { deleteDraft } from '../../storage/articleDraftStorage';
 
 type WebsiteModalMode = 'add' | 'edit';
 type ArchiveModalMode = 'add' | 'edit';
@@ -74,8 +73,6 @@ export default function SettingsScreen() {
 
   const isValidUrl = (url: string) => {
     try {
-      // basic validation by trying to construct URL
-      // ensure protocol present before constructing
       const withProto = ensureHttps(url);
       // eslint-disable-next-line no-new
       new URL(withProto);
@@ -137,7 +134,6 @@ export default function SettingsScreen() {
         w.id === editingWebsiteId ? { ...w, name, baseUrl } : w
       );
       await persistWebsites(updated);
-      // Keep selection on edited website
       setSelectedWebsiteId(editingWebsiteId);
     }
 
@@ -164,7 +160,6 @@ export default function SettingsScreen() {
     try {
       const toDelete = websites.find((w) => w.id === websiteId);
       if (toDelete) {
-        // Delete drafts for all archives of this website
         for (const archive of toDelete.archives) {
           try {
             await deleteDraft(websiteId, archive.id);
@@ -177,7 +172,6 @@ export default function SettingsScreen() {
       const updated = websites.filter((w) => w.id !== websiteId);
       await persistWebsites(updated);
 
-      // adjust selection
       if (selectedWebsiteId === websiteId) {
         setSelectedWebsiteId(updated[0]?.id ?? null);
       }
@@ -274,7 +268,6 @@ export default function SettingsScreen() {
   const handleDeleteArchive = async (archiveId: string) => {
     if (!selectedWebsite) return;
     try {
-      // delete drafts for this archive
       try {
         await deleteDraft(selectedWebsite.id, archiveId);
       } catch (err) {
@@ -293,33 +286,23 @@ export default function SettingsScreen() {
 
   // Render archive item
   const renderArchiveItem = ({ item }: { item: ArchiveConfig }) => (
-    <View style={settingsStyles.archiveItem}>
-      <View style={{ flex: 1 }}>
-        <Text style={settingsStyles.archiveName}>{item.name}</Text>
-        <Text style={settingsStyles.archiveDetailMasked}>Token: ••••••••••</Text>
+    <View style={twoStyles.archiveItem}>
+      <View style={twoStyles.archiveMain}>
+        <Text style={twoStyles.archiveName}>{item.name}</Text>
+        <Text style={twoStyles.archiveDetailMasked}>Token: ••••••••••</Text>
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <TouchableOpacity
-          style={settingsStyles.removeButton}
-          onPress={() => openEditArchiveModal(item)}
-        >
-          <Text style={settingsStyles.removeButtonText}>Bearbeiten</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={settingsStyles.removeButton}
-          onPress={() => confirmDeleteArchive(item.id)}
-        >
-          <Text style={settingsStyles.removeButtonText}>Löschen</Text>
-        </TouchableOpacity>
+      <View style={twoStyles.archiveActions}>
+        <AppButton title="Bearbeiten" variant="primary" onPress={() => openEditArchiveModal(item)} />
+        <View style={{ width: theme.spacing.xs }} />
+        <AppButton title="Löschen" variant="danger" onPress={() => confirmDeleteArchive(item.id)} />
       </View>
     </View>
   );
 
   if (loading) {
     return (
-      <View style={[globalStyles.screenContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[globalStyles.screenContainer, globalStyles.centeredScreen]}>
         <Text>Lade Einstellungen…</Text>
       </View>
     );
@@ -328,14 +311,14 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       style={globalStyles.screenContainer}
-      contentContainerStyle={{ paddingBottom: 24 }}
+      contentContainerStyle={twoStyles.scrollContent}
       keyboardShouldPersistTaps="handled"
     >
       {/* Header / Website selector */}
       <Text style={globalStyles.sectionTitle}>Einstellungen</Text>
 
       {websites.length === 0 ? (
-        <Text style={settingsStyles.emptyText}>Noch keine Webseiten angelegt.</Text>
+        <Text style={twoStyles.emptyText}>Noch keine Webseiten angelegt.</Text>
       ) : (
         <AppDropdown
           label="Webseite auswählen"
@@ -346,26 +329,26 @@ export default function SettingsScreen() {
         />
       )}
 
-      <View style={settingsStyles.buttonRow}>
-        <Button title="Neue Webseite" onPress={openAddWebsiteModal} />
+      <View style={twoStyles.buttonRow}>
+        <AppButton title="Neue Webseite" variant="link" onPress={openAddWebsiteModal} style={twoStyles.topLinkButton} />
         {selectedWebsite && (
           <>
-            <Button title="Bearbeiten" onPress={() => openEditWebsiteModal(selectedWebsite)} />
-            <Button
-              title="Löschen"
-              color="#e74c3c"
-              onPress={() => confirmDeleteWebsite(selectedWebsite)}
-            />
+            <View style={{ marginLeft: 12 }}>
+              <AppButton title="Bearbeiten" variant="primary" onPress={() => openEditWebsiteModal(selectedWebsite)} />
+            </View>
+            <View style={{ marginLeft: 12 }}>
+              <AppButton title="Löschen" variant="danger" onPress={() => confirmDeleteWebsite(selectedWebsite)} />
+            </View>
           </>
         )}
       </View>
 
       {selectedWebsite && (
         <>
-          <Text style={globalStyles.sectionTitle}>News-Archive</Text>
+          <Text style={[globalStyles.sectionTitle,globalStyles.section]} >News-Archive</Text>
 
           {selectedWebsite.archives.length === 0 ? (
-            <Text style={settingsStyles.emptyText}>Noch keine Archive für diese Webseite angelegt.</Text>
+            <Text style={twoStyles.emptyText}>Noch keine Archive für diese Webseite angelegt.</Text>
           ) : (
             <FlatList
               data={selectedWebsite.archives}
@@ -375,17 +358,17 @@ export default function SettingsScreen() {
             />
           )}
 
-          <View style={[settingsStyles.buttonRow, { marginTop: 12 }]}>
-            <Button title="Neues Archiv" onPress={openAddArchiveModal} />
+          <View style={[twoStyles.buttonRow, { marginTop: 12 }]}>
+            <AppButton title="Neues Archiv" variant="link" onPress={openAddArchiveModal} />
           </View>
         </>
       )}
 
       {/* Website Modal */}
       <Modal visible={showWebsiteModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContainer}>
-            <Text style={{ fontWeight: '700', marginBottom: 8 }}>
+        <View style={twoStyles.modalBackdrop}>
+          <View style={twoStyles.modalContainer}>
+            <Text style={twoStyles.modalTitle}>
               {websiteModalMode === 'add' ? 'Neue Webseite hinzufügen' : 'Webseite bearbeiten'}
             </Text>
 
@@ -408,11 +391,11 @@ export default function SettingsScreen() {
               keyboardType="url"
             />
 
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
-              <View style={{ marginRight: 8 }}>
-                <Button title="Abbrechen" onPress={() => setShowWebsiteModal(false)} />
+            <View style={twoStyles.modalButtonRow}>
+              <View style={twoStyles.modalButtonRightGap}>
+                <AppButton title="Abbrechen" variant="link" onPress={() => setShowWebsiteModal(false)} />
               </View>
-              <Button title={websiteModalMode === 'add' ? 'Anlegen' : 'Speichern'} onPress={handleSaveWebsite} />
+              <AppButton title={websiteModalMode === 'add' ? 'Anlegen' : 'Speichern'} variant="primary" onPress={handleSaveWebsite} />
             </View>
           </View>
         </View>
@@ -420,9 +403,9 @@ export default function SettingsScreen() {
 
       {/* Archive Modal */}
       <Modal visible={showArchiveModal} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContainer}>
-            <Text style={{ fontWeight: '700', marginBottom: 8 }}>
+        <View style={twoStyles.modalBackdrop}>
+          <View style={twoStyles.modalContainer}>
+            <Text style={twoStyles.modalTitle}>
               {archiveModalMode === 'add' ? 'Neues Archiv anlegen' : 'Archiv bearbeiten'}
             </Text>
 
@@ -445,11 +428,11 @@ export default function SettingsScreen() {
               secureTextEntry
             />
 
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
-              <View style={{ marginRight: 8 }}>
-                <Button title="Abbrechen" onPress={() => setShowArchiveModal(false)} />
+            <View style={twoStyles.modalButtonRow}>
+              <View style={twoStyles.modalButtonRightGap}>
+                <AppButton title="Abbrechen" variant="link" onPress={() => setShowArchiveModal(false)} />
               </View>
-              <Button title={archiveModalMode === 'add' ? 'Anlegen' : 'Speichern'} onPress={handleSaveArchive} />
+              <AppButton title={archiveModalMode === 'add' ? 'Anlegen' : 'Speichern'} variant="primary" onPress={handleSaveArchive} />
             </View>
           </View>
         </View>
@@ -457,18 +440,3 @@ export default function SettingsScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  modalContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    maxHeight: '90%',
-  },
-});
