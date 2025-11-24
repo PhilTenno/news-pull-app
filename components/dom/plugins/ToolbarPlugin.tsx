@@ -1,5 +1,7 @@
+//components/dom/plugins/Toolbarplugin.tsx
 "use dom";
 
+import { MaterialIcons } from "@expo/vector-icons"; // MaterialIcons verwenden
 import {
   INSERT_ORDERED_LIST_COMMAND,
   INSERT_UNORDERED_LIST_COMMAND,
@@ -38,6 +40,7 @@ export default function ToolbarPlugin() {
   // Block-/Listen-Status
   const [blockType, setBlockType] = useState<HeadingTag>("paragraph");
   const [listType, setListType] = useState<ListType>("none");
+
   const updateToolbar = useCallback(
     (editorState: EditorState) => {
       editorState.read(() => {
@@ -64,17 +67,15 @@ export default function ToolbarPlugin() {
         let nextBlockType: HeadingTag = "paragraph";
         let nextListType: ListType = "none";
 
-        // Heading?
         if (type === "heading" && $isHeadingNode(element)) {
-          const tag = element.getTag(); // "h2" | "h3" | ...
+          const tag = element.getTag();
           nextBlockType = tag as HeadingTag;
         } else if (type === "paragraph") {
           nextBlockType = "paragraph";
         }
 
-        // Liste? (Top-Level ListNode oder ListItemNode mit Parent ListNode)
         if (element instanceof ListNode) {
-          const listKind = element.getListType(); // "bullet" | "number"
+          const listKind = element.getListType();
           if (listKind === "bullet") {
             nextListType = "bullet";
           } else if (listKind === "number") {
@@ -296,13 +297,31 @@ export default function ToolbarPlugin() {
     });
   };
 
-  // === Render ===
+  // Styling helpers
+  const btnBase: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 34,
+    height: 34,
+    padding: 6,
+    borderRadius: 6,
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+  };
+
+  const ICON_SIZE = 14; // statt 18
+  const activeBg = "#e8f4f7";
+  const activeColor = "#0a7ea4";
+  const inactiveColor = "#333";
+
   return (
     <div
       style={{
         display: "flex",
         flexWrap: "wrap",
-        gap: 8,
+        gap: 1,
         borderBottomWidth: 1,
         borderBottomColor: "#ddd",
         padding: 8,
@@ -312,7 +331,7 @@ export default function ToolbarPlugin() {
       <select
         value={blockType}
         onChange={(e) => applyBlockType(e.target.value as HeadingTag)}
-        style={{ padding: 4 }}
+        style={{ paddingBlock:4,paddingInline:8,paddingInlineStart:12}}
       >
         <option value="paragraph">Absatz</option>
         <option value="h2">Überschrift 2</option>
@@ -322,36 +341,47 @@ export default function ToolbarPlugin() {
         <option value="h6">Überschrift 6</option>
       </select>
 
-      {/* Inline-Formatierung */}
+      {/* Inline-Formatierung mittels MaterialIcons */}
       <button
         type="button"
         onClick={() => formatText("bold")}
         style={{
-          fontWeight: isBold ? "700" : "400",
-          padding: "4px 8px",
+          ...btnBase,
+          backgroundColor: isBold ? activeBg : "transparent",
         }}
+        aria-pressed={isBold}
+        title="Fett"
+        aria-label="Fett"
       >
-        B
+        <MaterialIcons name="format-bold" size={ICON_SIZE} color={isBold ? activeColor : inactiveColor} />
       </button>
+
       <button
         type="button"
         onClick={() => formatText("italic")}
         style={{
-          fontStyle: isItalic ? "italic" : "normal",
-          padding: "4px 8px",
+          ...btnBase,
+          backgroundColor: isItalic ? activeBg : "transparent",
         }}
+        aria-pressed={isItalic}
+        title="Kursiv"
+        aria-label="Kursiv"
       >
-        I
+        <MaterialIcons name="format-italic" size={ICON_SIZE} color={isItalic ? activeColor : inactiveColor} />
       </button>
+
       <button
         type="button"
         onClick={() => formatText("underline")}
         style={{
-          textDecoration: isUnderline ? "underline" : "none",
-          padding: "4px 8px",
+          ...btnBase,
+          backgroundColor: isUnderline ? activeBg : "transparent",
         }}
+        aria-pressed={isUnderline}
+        title="Unterstrichen"
+        aria-label="Unterstrichen"
       >
-        U
+        <MaterialIcons name="format-underlined" size={ICON_SIZE} color={isUnderline ? activeColor : inactiveColor} />
       </button>
 
       {/* Listen */}
@@ -359,42 +389,52 @@ export default function ToolbarPlugin() {
         type="button"
         onClick={toggleUnorderedList}
         style={{
-          padding: "4px 8px",
-          backgroundColor: listType === "bullet" ? "#e0e0e0" : "transparent",
+          ...btnBase,
+          backgroundColor: listType === "bullet" ? activeBg : "transparent",
         }}
+        title="Ungeordnete Liste"
+        aria-label="Ungeordnete Liste"
       >
-        • =
+        <MaterialIcons name="format-list-bulleted" size={ICON_SIZE} color={listType === "bullet" ? activeColor : inactiveColor} />
       </button>
+
       <button
         type="button"
         onClick={toggleOrderedList}
         style={{
-          padding: "4px 8px",
-          backgroundColor: listType === "number" ? "#e0e0e0" : "transparent",
+          ...btnBase,
+          backgroundColor: listType === "number" ? activeBg : "transparent",
         }}
+        title="Geordnete Liste"
+        aria-label="Geordnete Liste"
       >
-        1. =
+        <MaterialIcons name="format-list-numbered" size={ICON_SIZE} color={listType === "number" ? activeColor : inactiveColor} />
       </button>
 
       <button
         type="button"
         onClick={() => formatText("subscript")}
         style={{
-          padding: "4px 8px",
-          backgroundColor: isSubscript ? "#e0e0e0" : "transparent",
+          ...btnBase,
+          backgroundColor: isSubscript ? activeBg : "transparent",
         }}
+        title="Tiefgestellt"
+        aria-label="Tiefgestellt"
       >
-        x<sub>2</sub>
+        <MaterialIcons name="vertical-align-bottom" size={ICON_SIZE} color={isSubscript ? activeColor : inactiveColor} />
       </button>
+
       <button
         type="button"
         onClick={() => formatText("superscript")}
         style={{
-          padding: "4px 8px",
-          backgroundColor: isSuperscript ? "#e0e0e0" : "transparent",
+          ...btnBase,
+          backgroundColor: isSuperscript ? activeBg : "transparent",
         }}
+        title="Hochgestellt"
+        aria-label="Hochgestellt"
       >
-        x<sup>2</sup>
+        <MaterialIcons name="vertical-align-top" size={ICON_SIZE} color={isSuperscript ? activeColor : inactiveColor} />
       </button>
     </div>
   );
