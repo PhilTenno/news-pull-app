@@ -32,8 +32,21 @@ export type LexicalDomEditorProps = {
 
 const placeholder = "Gib deinen Artikeltext ein…";
 
+/**
+ * Wichtig: Theme als Objekt (nicht Funktion) und mit text.underline
+ * Dadurch hängt Lexical die Klasse an die gerenderten Elemente, sodass
+ * Underline sichtbar wird (z. B. class="underline" => text-decoration)
+ */
 const theme = {
-  // Theme placeholders - falls später Klassen zugewiesen werden sollen
+  text: {
+    bold: "font-bold",
+    italic: "italic",
+    underline: "underline", // <-- zentrale Änderung: sorgt dafür, dass Underline sichtbar wird
+    strikethrough: "line-through",
+    subscript: "align-sub",
+    superscript: "align-super",
+  },
+  // du kannst hier später noch paragraph/heading/list/etc. ergänzen
 };
 
 function onError(error: Error) {
@@ -140,7 +153,6 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
 
   // --- NEU ---
   // Inject very-specific strong overrides to neutralize UA blue focus ring (idempotent)
-  // Also adjust padding: use logical properties: padding-block remains 12px, padding-inline becomes 8px
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (document.querySelector('style[data-editor-theme-fix]')) return;
@@ -183,6 +195,13 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
         -webkit-focus-ring-color: transparent !important;
         -moz-outline-color: transparent !important;
       }
+      /* Underline für Lexical-Textnodes */
+      .editor-input .underline,
+      .editor-inner .underline,
+      .editor-container .underline,
+      .underline {
+        text-decoration: underline !important;
+      }
 
       /* remove any :focus-visible ring as requested */
       .editor-container .editor-input:focus-visible,
@@ -224,7 +243,7 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
             placeholder={
               <div
                 className="editor-placeholder"
-                style={{ position: "absolute", top: 0, left: 5, color: "#999", zIndex: -1 }}
+                style={{ position: "absolute", top: 0, left: 5, color: "#666", zIndex: -1 }}
               >
                 {placeholder}
               </div>

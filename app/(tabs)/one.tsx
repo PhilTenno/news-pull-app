@@ -310,7 +310,7 @@ export default function ArticleScreen() {
     // @ts-ignore
     autoSaveTimeoutRef.current = setTimeout(() => {
       saveCurrentDraft();
-    }, 1000) as unknown as number;
+    }, 2000) as unknown as number;
   };
 
   const handleSave = async () => {
