@@ -1,0 +1,158 @@
+/* styles/editor-theme.css */
+
+/* --- Lokale Roboto-Schriften (Dateien müssen unter /assets/fonts/ erreichbar sein) --- */
+@font-face {
+  font-family: 'Roboto';
+  src: url('/assets/fonts/Roboto-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Roboto';
+  src: url('/assets/fonts/Roboto-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Roboto';
+  src: url('/assets/fonts/Roboto-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Roboto';
+  src: url('/assets/fonts/Roboto-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Grundlegende Schrift-Fallbacks */
+html, body {
+  font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Editor: Grundlayout und Schrift */
+.editor-container,
+.editor-container * {
+  font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Baseline für ContentEditable / Editor Input */
+.editor-inner {
+  position: relative;
+}
+
+/* Allgemeine Regeln für alle möglichen contenteditable-Varianten */
+.editor-input,
+.editor-input[contenteditable="true"],
+.editor-inner [contenteditable],
+.editor-inner [contenteditable="true"] {
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent; /* iOS tap highlight entfernen */
+  -webkit-user-modify: read-write-plaintext-only;
+  caret-color: #222;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 12px;
+  background-color: #fff;
+  border: 1px solid #e6e6e6;
+  box-shadow: none;
+  transition: box-shadow .12s ease, border-color .12s ease;
+  outline: none;
+}
+
+/* --- Sehr starke Overrides gegen Browser-/UA-Fokus (inkl. rgb(0,136,255)) --- */
+/* breite, sehr spezifische Selektoren innerhalb .editor-container */
+.editor-container .editor-input:focus,
+.editor-container .editor-input[contenteditable="true"]:focus,
+.editor-container .editor-inner [contenteditable]:focus,
+.editor-container .editor-inner [contenteditable="true"]:focus,
+.editor-container .editor-input:focus:not(:focus-visible),
+.editor-container .editor-input[contenteditable="true"]:focus:not(:focus-visible),
+.editor-container .editor-inner [contenteditable]:focus:not(:focus-visible),
+.editor-container .editor-inner [contenteditable="true"]:focus:not(:focus-visible),
+/* Falls innere Kind-Elemente fokusiert werden (z. B. span/mark) */
+.editor-container .editor-input *:focus,
+.editor-container .editor-inner [contenteditable] *:focus {
+  outline: 0 !important;
+  outline-style: none !important;
+  outline-color: transparent !important;
+  outline-width: 0 !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
+  border-color: #e6e6e6 !important;
+  /* Extra: versuch, WebKit-internen Fokusfarbwert zu neutralisieren */
+  -webkit-focus-ring-color: transparent !important;
+  /* Für ältere Browser: */
+  -moz-outline-color: transparent !important;
+}
+
+/* Dezent sichtbarer Fokus für Keyboard-Nutzer (Accessibility preserved) */
+.editor-container .editor-input:focus-visible,
+.editor-container .editor-input[contenteditable="true"]:focus-visible,
+.editor-container .editor-inner [contenteditable]:focus-visible,
+.editor-container .editor-inner [contenteditable="true"]:focus-visible,
+.editor-container .editor-input *:focus-visible,
+.editor-container .editor-inner [contenteditable] *:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(10,126,164,0.12);
+  -webkit-box-shadow: 0 0 0 3px rgba(10,126,164,0.12);
+  border-color: #cfeaf2;
+}
+
+/* iOS / Safari Fallback: zusätzliche Absicherung gegen UA-Ringe */
+@supports (-webkit-overflow-scrolling: touch) {
+  .editor-container .editor-input:focus,
+  .editor-container .editor-input[contenteditable="true"]:focus,
+  .editor-container .editor-inner [contenteditable]:focus,
+  .editor-container .editor-inner [contenteditable="true"]:focus {
+    outline: 0 !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+  }
+}
+
+/* Placeholder */
+.editor-placeholder {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: #999;
+  pointer-events: none;
+  font-family: inherit;
+  font-size: 16px;
+}
+
+/* Paragraphs / Headings */
+.editor-input p { margin: 0 0 0.85em 0; }
+.editor-input h2, .editor-input h3, .editor-input h4, .editor-input h5, .editor-input h6 {
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+  font-weight: 500;
+}
+
+/* Listen */
+.editor-input ul, .editor-input ol {
+  margin: 0 0 1em 0;
+  padding-left: 1.5em;
+}
+.editor-input li { margin-bottom: 0.25em; }
+
+/* Inline-Format */
+.editor-input strong, .editor-input b { font-weight: 700; }
+.editor-input em, .editor-input i { font-style: italic; }
+.editor-input u { text-decoration: underline; }
+.editor-input sub { vertical-align: sub; font-size: smaller; }
+.editor-input sup { vertical-align: super; font-size: smaller; }

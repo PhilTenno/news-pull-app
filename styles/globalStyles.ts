@@ -34,6 +34,11 @@ export const globalStyles = StyleSheet.create({
     color: theme.colors.text,
     fontFamily: theme.fonts.medium,
   },
+  labelSmall: {
+    fontSize: theme.fontSizes.xs,
+    marginRight:6,
+    fontWeight:'300',
+  },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.border,

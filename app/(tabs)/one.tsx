@@ -670,15 +670,16 @@ export default function ArticleScreen() {
             <Text style={globalStyles.label}>Artikel</Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[globalStyles.labelSmall]}>Veröffentlichung:</Text>
               <SmallButton
                 iconName="calendar-outline"
-                title={draft.publishedAt ? formatDate(draft.publishedAt) : 'Datum'}
+                title={draft.publishedAt ? formatDate(draft.publishedAt) : ''}
                 onPress={openDatePicker}
                 style={{ marginRight: 8 }}
               />
               <SmallButton
                 iconName="time-outline"
-                title={draft.publishedAt ? formatTime(draft.publishedAt) : 'Uhrzeit'}
+                title={draft.publishedAt ? formatTime(draft.publishedAt) : ''}
                 onPress={openTimePicker}
               />
             </View>

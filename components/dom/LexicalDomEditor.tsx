@@ -1,4 +1,3 @@
-// components/dom/LexicalDomEditor.tsx
 "use dom";
 
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
@@ -110,48 +109,6 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
     });
   };
 
-  // CSS injection: Google Fonts + focus removal + font override für Editor-Elemente
-  const injectedCss = `
-    /* Roboto aus Google Fonts (300/400/500/700) */
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-
-    .editor-container,
-    .editor-inner,
-    .editor-input,
-    .editor-placeholder {
-      font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-      -webkit-font-smoothing:antialiased;
-      -moz-osx-font-smoothing:grayscale;
-    }
-
-    /* Entferne Browser-Fokus-Rahmen für contenteditable */
-    [contenteditable], .editor-input {
-      outline: none !important;
-      box-shadow: none !important;
-      -webkit-tap-highlight-color: transparent;
-    }
-    [contenteditable]:focus, .editor-input:focus {
-      outline: none !important;
-      box-shadow: none !important;
-    }
-
-    /* Platzhalter styling */
-    .editor-placeholder {
-      pointer-events: none;
-      color: #999;
-    }
-
-    /* Basis-Reset für Editor-Box */
-    .editor-container {
-      box-sizing: border-box;
-    }
-
-    /* optional: Paragraph styling, harmonisiert mit native UI */
-    .editor-input p {
-      margin: 0 0 0.85em 0;
-    }
-  `;
-
   // ContentEditable props
   const contentEditableProps: ContentEditableProps = {
     className: "editor-input",
@@ -161,11 +118,103 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
 
   // container inline style kommt von props.dom?.style (z. B. height)
   const containerStyle = props.dom?.style ?? {};
+  const cssHref = "/styles/editor-theme.css";
+
+  const cssFallbackScript = `(function(){ try {
+    var href = '${cssHref}';
+    var link = document.querySelector('link[href=\"' + href + '\"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
+    link.onerror = function() {
+      fetch(href).then(function(r){ return r.text(); }).then(function(t){
+        var s = document.createElement('style');
+        s.textContent = t;
+        document.head.appendChild(s);
+      }).catch(function(){/* ignore */});
+    };
+  } catch(e) { /* ignore in non-web env */ }})();`;
+
+  // --- NEU ---
+  // Inject very-specific strong overrides to neutralize UA blue focus ring (idempotent)
+  // Also adjust padding: use logical properties: padding-block remains 12px, padding-inline becomes 8px
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (document.querySelector('style[data-editor-theme-fix]')) return;
+
+    const css = `
+      /* ensure editor input uses logical padding-inline */
+      .editor-container .editor-input,
+      .editor-container .editor-input[contenteditable="true"],
+      .editor-container .editor-inner [contenteditable],
+      .editor-container .editor-inner [contenteditable="true"] {
+        padding-block: 0 8px !important;
+        padding-inline: 12px 4px !important;
+        font-family:'Roboto',sans-serif;
+        font-weight:300;
+        font-size:14px;
+      }
+      .editor-placeholder {
+        font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif !important;
+        font-weight:300;
+        font-size:14px;
+        padding-inline: 8px 4px !important;
+      }
+      /* very specific overrides for editor focus to neutralize UA blue ring */
+      .editor-container .editor-input:focus,
+      .editor-container .editor-input[contenteditable="true"]:focus,
+      .editor-container .editor-inner [contenteditable]:focus,
+      .editor-container .editor-inner [contenteditable="true"]:focus,
+      .editor-container .editor-input *:focus,
+      .editor-container .editor-inner [contenteditable] *:focus,
+      .editor-container [data-lexical-editor] :focus {
+        outline: 0 !important;
+        outline-style: none !important;
+        outline-color: transparent !important;
+        outline-width: 0 !important;
+        outline-offset: 0 !important;
+        box-shadow: none !important;
+        -webkit-box-shadow: none !important;
+        -moz-box-shadow: none !important;
+        border-color: inherit !important;
+        -webkit-focus-ring-color: transparent !important;
+        -moz-outline-color: transparent !important;
+      }
+
+      /* remove any :focus-visible ring as requested */
+      .editor-container .editor-input:focus-visible,
+      .editor-container .editor-input[contenteditable="true"]:focus-visible,
+      .editor-container .editor-inner [contenteditable]:focus-visible,
+      .editor-container .editor-inner [contenteditable="true"]:focus-visible,
+      .editor-container .editor-input *:focus-visible,
+      .editor-container .editor-inner [contenteditable] *:focus-visible {
+        outline: 0 !important;
+        box-shadow: none !important;
+        -webkit-box-shadow: none !important;
+        border-color: inherit !important;
+      }
+    `;
+
+    const style = document.createElement("style");
+    style.setAttribute("data-editor-theme-fix", "true");
+    style.textContent = css;
+    document.head.appendChild(style);
+
+    return () => {
+      style.remove();
+    };
+  }, []);
+  // --- ENDE NEU ---
 
   return (
     <div className="editor-container" style={containerStyle}>
-      {/* injizierte CSS (wird im gerenderten HTML angewendet) */}
-      <style dangerouslySetInnerHTML={{ __html: injectedCss }} />
+      {/* Externe CSS (wird vom Webserver / Dev-Server bereitgestellt) */}
+      <link rel="stylesheet" href={cssHref} />
+      {/* Fallback: falls Link nicht geladen werden kann, fetch + injizieren */}
+      <script dangerouslySetInnerHTML={{ __html: cssFallbackScript }} />
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin />
         <ExternalHtmlSyncPlugin html={props.value ?? ""} />
@@ -183,7 +232,11 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
             ErrorBoundary={LexicalErrorBoundary}
           />
           <HistoryPlugin />
-          <OnChangePlugin onChange={handleChange} ignoreHistoryMergeTagChange ignoreSelectionChange />
+          <OnChangePlugin
+            onChange={handleChange}
+            ignoreHistoryMergeTagChange={true}
+            ignoreSelectionChange={true}
+          />
           <ListPlugin />
           <LinkPlugin />
           <AutoLinkPlugin />
