@@ -1,6 +1,7 @@
 // components/AppDropdown.tsx
 import { StyleSheet, Text, View } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
+import { theme } from '../styles/theme';
 
 type DropdownItem = {
   id: string;
@@ -38,7 +39,7 @@ export function AppDropdown({
         itemTextStyle={styles.itemTextStyle}
         iconStyle={styles.iconStyle}
         data={dropdownData}
-        search
+        //search
         maxHeight={300}
         labelField="label"
         valueField="value"
@@ -60,27 +61,27 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
+    color: theme.colors.text,
+    marginBottom: 8,
   },
   itemTextStyle: {
-    fontSize:14,
+    fontSize:theme.fontSizes.sm,
   },
   dropdown: {
     height: 50,
-    borderColor: '#ccc',
+    borderColor:theme.colors.border,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.modalInput,
   },
   placeholderStyle: {
     fontSize: 12,
-    color: '#999',
+    color: theme.colors.modalPlaceholder,
   },
   selectedTextStyle: {
     fontSize: 14,
-    color: '#333',
+    color: theme.colors.text,
   },
   inputSearchStyle: {
     height: 40,

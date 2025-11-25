@@ -141,6 +141,9 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
 
     const css = `
       /* ensure editor input uses logical padding-inline */
+      .editor-container {
+        width:100%;
+      }
       .editor-container .editor-input,
       .editor-container .editor-input[contenteditable="true"],
       .editor-container .editor-inner [contenteditable],
@@ -150,11 +153,13 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
         font-family:'Roboto',sans-serif;
         font-weight:300;
         font-size:14px;
+        color:#efefef;
       }
       .editor-placeholder {
         font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif !important;
         font-weight:300;
         font-size:14px;
+        color:#efefef;
         padding-inline: 8px 4px !important;
       }
       /* very specific overrides for editor focus to neutralize UA blue ring */
@@ -222,7 +227,7 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
             placeholder={
               <div
                 className="editor-placeholder"
-                style={{ position: "absolute", top: 0, left: 5, color: "#666", zIndex: -1 }}
+                style={{ position: "absolute", top: 0, left: 5, color: "#efefef", zIndex: -1 }}
               >
                 {placeholder}
               </div>

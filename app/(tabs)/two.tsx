@@ -1,4 +1,3 @@
-// app/(tabs)/two.tsx
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -20,7 +19,7 @@ import { globalStyles } from '@/styles/globalStyles';
 import { theme } from '@/styles/theme';
 import { twoStyles } from '@/styles/two.styles';
 import { AppDropdown } from '../../components/AppDropdown';
-import AppButton from '../../components/ui/AppButton';
+import Button from '../../components/ui/Button';
 import { deleteDraft } from '../../storage/articleDraftStorage';
 
 type WebsiteModalMode = 'add' | 'edit';
@@ -289,13 +288,17 @@ export default function SettingsScreen() {
     <View style={twoStyles.archiveItem}>
       <View style={twoStyles.archiveMain}>
         <Text style={twoStyles.archiveName}>{item.name}</Text>
-        <Text style={twoStyles.archiveDetailMasked}>Token: ••••••••••</Text>
+        {/* <Text style={twoStyles.archiveDetailMasked}>Token: ••••••••••</Text> */}
       </View>
 
       <View style={twoStyles.archiveActions}>
-        <AppButton title="Bearbeiten" variant="primary" onPress={() => openEditArchiveModal(item)} />
+        <Button className="btn btnEdit" onPress={() => openEditArchiveModal(item)}>
+          Bearbeiten
+        </Button>
         <View style={{ width: theme.spacing.xs }} />
-        <AppButton title="Löschen" variant="danger" onPress={() => confirmDeleteArchive(item.id)} />
+        <Button className="btn btnDelete" onPress={() => confirmDeleteArchive(item.id)}>
+          Löschen
+        </Button>
       </View>
     </View>
   );
@@ -311,14 +314,14 @@ export default function SettingsScreen() {
   return (
     <ScrollView
       style={globalStyles.screenContainer}
-      contentContainerStyle={twoStyles.scrollContent}
+      contentContainerStyle={globalStyles.scrollContent}
       keyboardShouldPersistTaps="handled"
     >
       {/* Header / Website selector */}
       <Text style={globalStyles.sectionTitle}>Einstellungen</Text>
 
       {websites.length === 0 ? (
-        <Text style={twoStyles.emptyText}>Noch keine Webseiten angelegt.</Text>
+        <Text style={globalStyles.emptyText}>Noch keine Webseiten angelegt.</Text>
       ) : (
         <AppDropdown
           label="Webseite auswählen"
@@ -329,15 +332,21 @@ export default function SettingsScreen() {
         />
       )}
 
-      <View style={twoStyles.buttonRow}>
-        <AppButton title="Neue Webseite" variant="link" onPress={openAddWebsiteModal} style={twoStyles.topLinkButton} />
+      <View style={globalStyles.buttonRow}>
+        <Button className="btn btnAdd" onPress={openAddWebsiteModal}>
+          Neue Webseite
+        </Button>
         {selectedWebsite && (
           <>
             <View style={{ marginLeft: 12 }}>
-              <AppButton title="Bearbeiten" variant="primary" onPress={() => openEditWebsiteModal(selectedWebsite)} />
+              <Button className="btn btnEdit" onPress={() => openEditWebsiteModal(selectedWebsite)}>
+                Bearbeiten
+              </Button>
             </View>
             <View style={{ marginLeft: 12 }}>
-              <AppButton title="Löschen" variant="danger" onPress={() => confirmDeleteWebsite(selectedWebsite)} />
+              <Button className="btn btnDelete" onPress={() => confirmDeleteWebsite(selectedWebsite)}>
+                Löschen
+              </Button>
             </View>
           </>
         )}
@@ -345,10 +354,10 @@ export default function SettingsScreen() {
 
       {selectedWebsite && (
         <>
-          <Text style={[globalStyles.sectionTitle,globalStyles.section]} >News-Archive</Text>
+          <Text style={[globalStyles.sectionTitle, globalStyles.section]}>News-Archive</Text>
 
           {selectedWebsite.archives.length === 0 ? (
-            <Text style={twoStyles.emptyText}>Noch keine Archive für diese Webseite angelegt.</Text>
+            <Text style={globalStyles.emptyText}>Noch keine Archive für diese Webseite angelegt.</Text>
           ) : (
             <FlatList
               data={selectedWebsite.archives}
@@ -358,44 +367,52 @@ export default function SettingsScreen() {
             />
           )}
 
-          <View style={[twoStyles.buttonRow, { marginTop: 12 }]}>
-            <AppButton title="Neues Archiv" variant="link" onPress={openAddArchiveModal} />
+          <View style={[globalStyles.buttonRow, { marginTop: 12 }]}>
+            <Button className="btn btnAdd" onPress={openAddArchiveModal}>
+              Neues Archiv
+            </Button>
           </View>
         </>
       )}
 
       {/* Website Modal */}
       <Modal visible={showWebsiteModal} animationType="slide" transparent>
-        <View style={twoStyles.modalBackdrop}>
-          <View style={twoStyles.modalContainer}>
-            <Text style={twoStyles.modalTitle}>
+        <View style={globalStyles.modalBackdrop}>
+          <View style={globalStyles.modalContainer}>
+            <Text style={globalStyles.modalTitle}>
               {websiteModalMode === 'add' ? 'Neue Webseite hinzufügen' : 'Webseite bearbeiten'}
             </Text>
 
-            <Text style={globalStyles.label}>Webseiten-Name</Text>
+            <Text style={globalStyles.modalLabel}>Webseiten-Name</Text>
             <TextInput
-              style={globalStyles.input}
+              style={globalStyles.modalInput}
               placeholder="z.B. MeinBlog, Firmenname"
+              placeholderTextColor= 'rgba(255,255,255,0.4)'
               value={websiteModalName}
               onChangeText={setWebsiteModalName}
               autoCapitalize="none"
             />
 
-            <Text style={globalStyles.label}>Basis-URL</Text>
+            <Text style={globalStyles.modalLabel}>Basis-URL</Text>
             <TextInput
-              style={globalStyles.input}
+              style={globalStyles.modalInput}
               placeholder="https://meine-domain.de"
+              placeholderTextColor= 'rgba(255,255,255,0.4)'
               value={websiteModalBaseUrl}
               onChangeText={setWebsiteModalBaseUrl}
               autoCapitalize="none"
               keyboardType="url"
             />
 
-            <View style={twoStyles.modalButtonRow}>
-              <View style={twoStyles.modalButtonRightGap}>
-                <AppButton title="Abbrechen" variant="link" onPress={() => setShowWebsiteModal(false)} />
+            <View style={globalStyles.modalButtonRow}>
+              <View style={globalStyles.modalButtonRightGap}>
+                <Button className="btn btnCancel" onPress={() => setShowWebsiteModal(false)}>
+                  Abbrechen
+                </Button>
               </View>
-              <AppButton title={websiteModalMode === 'add' ? 'Anlegen' : 'Speichern'} variant="primary" onPress={handleSaveWebsite} />
+              <Button className="btn btnAdd" onPress={handleSaveWebsite}>
+                {websiteModalMode === 'add' ? 'Anlegen' : 'Speichern'}
+              </Button>
             </View>
           </View>
         </View>
@@ -403,9 +420,9 @@ export default function SettingsScreen() {
 
       {/* Archive Modal */}
       <Modal visible={showArchiveModal} animationType="slide" transparent>
-        <View style={twoStyles.modalBackdrop}>
-          <View style={twoStyles.modalContainer}>
-            <Text style={twoStyles.modalTitle}>
+        <View style={globalStyles.modalBackdrop}>
+          <View style={globalStyles.modalContainer}>
+            <Text style={globalStyles.modalTitle}>
               {archiveModalMode === 'add' ? 'Neues Archiv anlegen' : 'Archiv bearbeiten'}
             </Text>
 
@@ -413,6 +430,7 @@ export default function SettingsScreen() {
             <TextInput
               style={globalStyles.input}
               placeholder="z.B. Startseite, Magazin, Blog"
+              placeholderTextColor= 'rgba(255,255,255,0.4)'
               value={archiveModalName}
               onChangeText={setArchiveModalName}
               autoCapitalize="none"
@@ -422,17 +440,22 @@ export default function SettingsScreen() {
             <TextInput
               style={globalStyles.input}
               placeholder="Token eintragen"
+              placeholderTextColor= 'rgba(255,255,255,0.4)'
               value={archiveModalToken}
               onChangeText={setArchiveModalToken}
               autoCapitalize="none"
               secureTextEntry
             />
 
-            <View style={twoStyles.modalButtonRow}>
-              <View style={twoStyles.modalButtonRightGap}>
-                <AppButton title="Abbrechen" variant="link" onPress={() => setShowArchiveModal(false)} />
+            <View style={globalStyles.modalButtonRow}>
+              <View style={globalStyles.modalButtonRightGap}>
+                <Button className="btn btnCancel" onPress={() => setShowArchiveModal(false)}>
+                  Abbrechen
+                </Button>
               </View>
-              <AppButton title={archiveModalMode === 'add' ? 'Anlegen' : 'Speichern'} variant="primary" onPress={handleSaveArchive} />
+              <Button className="btn btnAdd" onPress={handleSaveArchive}>
+                {archiveModalMode === 'add' ? 'Anlegen' : 'Speichern'}
+              </Button>
             </View>
           </View>
         </View>

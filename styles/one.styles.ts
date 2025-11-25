@@ -7,51 +7,19 @@ export const oneStyles = StyleSheet.create({
     paddingBottom: 24,
   },
 
-  // Grid / rows
-  row: { flexDirection: 'row', marginBottom: 8 },
-  column: { flex: 1 },
-  rowBetween: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  rowEnd: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-
-  // Date buttons
-  dateButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  dateButtonText: {
-    fontSize: 13,
-    color: '#333',
-    fontWeight: '500',
-    fontFamily: theme.fonts.regular,
-  },
-
   // Editor container + inner style (Roboto enforced, remove focus outline)
   editorWrapper: {
     marginTop: 12,
     marginBottom: 16,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
     borderRadius: 6,
-    borderColor: '#ccc',
+    borderColor: theme.colors.border,
     borderWidth: 1,
   },
   editorContent: {
     height: 250,
     fontFamily: theme.fonts.regular,
-    color: '#222',
+    color: theme.colors.text,
     // try to remove platform focus glow
     outlineWidth: 0,
     borderWidth: 0,
@@ -89,7 +57,6 @@ export const oneStyles = StyleSheet.create({
     right: 0,
     bottom: 24,
     marginHorizontal: 16,
-    backgroundColor: theme.colors.primary,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -97,26 +64,4 @@ export const oneStyles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Modal
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  modalContainer: { backgroundColor: '#fff', borderRadius: 8, padding: 12, maxHeight: '90%' },
-
-  // SmallButton base (used statt inline)
-  smallBase: { flexDirection: 'row', alignItems: 'center', borderRadius: 8 },
-  smallPrimary: { backgroundColor: theme.colors.primary, paddingVertical: 8, paddingHorizontal: 10 },
-  smallDanger: { backgroundColor: theme.colors.danger, paddingVertical: 6, paddingHorizontal: 10 },
-  smallLink: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  smallTextLight: { color: '#fff', fontWeight: '600', fontFamily: theme.fonts.medium },
-  smallTextLink: { color: theme.colors.primary, fontWeight: '600', fontFamily: theme.fonts.medium },
 });

@@ -1,14 +1,15 @@
 // styles/theme.ts
 export const theme = {
   colors: {
-    background: '#f7f8fa',
-    surface: '#ffffff',
-    primary: '#ccc',
-    primaryDark: '#07627f',
-    danger: '#e74c3c',
-    text: '#222222',
-    muted: '#666666',
-    border: '#e0e0e0',
+    background: '#23272E',
+    surface: '#23272E',
+    text: '#efefef',
+    muted: '#efefef',
+    border: '#556070',
+    modalColor: '#efefef',
+    modalInput: 'rgba(255,255,255,0.1)',
+    modalPlaceholder: '#efefef',
+    noContentTextColor: '#db5555'
   },
   spacing: {
     xxs: 4,
