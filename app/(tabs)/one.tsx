@@ -772,7 +772,7 @@ export default function ArticleScreen() {
       <Modal visible={showManualMetaModal} animationType="slide" transparent={true}>
         <View style={globalStyles.modalBackdrop}>
           <View style={globalStyles.modalContainer}>
-            <Text style={{ fontWeight: '700', marginBottom: 8 }}>Meta-Felder bearbeiten</Text>
+            <Text style={{ fontWeight: '700', marginBottom: 8, color:'#efefef' }}>Meta-Felder bearbeiten</Text>
 
             <Text style={globalStyles.label}>Meta Title</Text>
             <TextInput
