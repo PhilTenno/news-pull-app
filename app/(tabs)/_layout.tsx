@@ -6,13 +6,32 @@ import { useColorScheme } from 'react-native';
 
 export default function TabsLayout() {
   const colorScheme = useColorScheme();
-  const tintColor = Colors[colorScheme ?? 'light'].tint;
+  const scheme = colorScheme ?? 'dark';
+  const tintColor = Colors[scheme].tint;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: true,
         tabBarActiveTintColor: tintColor,
+        tabBarInactiveTintColor: '#556070', 
+        tabBarStyle: {
+          backgroundColor: '#23272E', 
+          borderTopColor: '#333',
+          borderTopWidth: 1,
+        },
+        headerStyle: {
+          backgroundColor: '#23272E', 
+          borderBottomColor: '#333',
+          borderBottomWidth: 1,
+        },
+        headerTintColor: tintColor, 
+        headerTitleStyle: {
+          fontWeight: '600',
+          display:'flex',
+          justifyContent:'center'
+          
+        },
       }}
     >
       <Tabs.Screen

@@ -58,6 +58,7 @@ function ExternalHtmlSyncPlugin({ html }: { html: string }) {
 
   useEffect(() => {
     if (html == null) return;
+    if (typeof window === "undefined" || typeof document === "undefined") return;
 
     editor.update(() => {
       const root = $getRoot();
@@ -73,12 +74,9 @@ function ExternalHtmlSyncPlugin({ html }: { html: string }) {
 
       const domParser = new DOMParser();
       const dom = domParser.parseFromString(html, "text/html");
-
       root.clear();
       const nodes = $generateNodesFromDOM(editor, dom.body);
-      nodes.forEach((node) => {
-        root.append(node);
-      });
+      nodes.forEach(node => root.append(node));
       root.select();
     });
   }, [html, editor]);
@@ -131,25 +129,9 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
 
   // container inline style kommt von props.dom?.style (z. B. height)
   const containerStyle = props.dom?.style ?? {};
-  const cssHref = "/styles/editor-theme.css";
+  
 
-  const cssFallbackScript = `(function(){ try {
-    var href = '${cssHref}';
-    var link = document.querySelector('link[href=\"' + href + '\"]');
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = href;
-      document.head.appendChild(link);
-    }
-    link.onerror = function() {
-      fetch(href).then(function(r){ return r.text(); }).then(function(t){
-        var s = document.createElement('style');
-        s.textContent = t;
-        document.head.appendChild(s);
-      }).catch(function(){/* ignore */});
-    };
-  } catch(e) { /* ignore in non-web env */ }})();`;
+
 
   // --- NEU ---
   // Inject very-specific strong overrides to neutralize UA blue focus ring (idempotent)
@@ -159,6 +141,9 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
 
     const css = `
       /* ensure editor input uses logical padding-inline */
+      .editor-container {
+        width:100%;
+      }
       .editor-container .editor-input,
       .editor-container .editor-input[contenteditable="true"],
       .editor-container .editor-inner [contenteditable],
@@ -168,11 +153,13 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
         font-family:'Roboto',sans-serif;
         font-weight:300;
         font-size:14px;
+        color:#efefef;
       }
       .editor-placeholder {
         font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif !important;
         font-weight:300;
         font-size:14px;
+        color:#efefef;
         padding-inline: 8px 4px !important;
       }
       /* very specific overrides for editor focus to neutralize UA blue ring */
@@ -230,10 +217,7 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
 
   return (
     <div className="editor-container" style={containerStyle}>
-      {/* Externe CSS (wird vom Webserver / Dev-Server bereitgestellt) */}
-      <link rel="stylesheet" href={cssHref} />
-      {/* Fallback: falls Link nicht geladen werden kann, fetch + injizieren */}
-      <script dangerouslySetInnerHTML={{ __html: cssFallbackScript }} />
+
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin />
         <ExternalHtmlSyncPlugin html={props.value ?? ""} />
@@ -243,7 +227,7 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
             placeholder={
               <div
                 className="editor-placeholder"
-                style={{ position: "absolute", top: 0, left: 5, color: "#666", zIndex: -1 }}
+                style={{ position: "absolute", top: 0, left: 5, color: "#efefef", zIndex: -1 }}
               >
                 {placeholder}
               </div>

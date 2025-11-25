@@ -11,8 +11,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
 import { AppDropdown } from '@/components/AppDropdown';
@@ -21,7 +20,8 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import LexicalDomEditor from '../../components/dom/LexicalDomEditor';
-import AppButton from '../../components/ui/AppButton';
+import Button from '../../components/ui/Button';
+import { SmallButton } from '../../components/ui/smallButton';
 import {
   ArticleDraft,
   deleteDraft,
@@ -36,49 +36,11 @@ import {
 import { oneStyles } from '../../styles/one.styles';
 
 // Neue Imports
-import { Ionicons } from '@expo/vector-icons'; // Icon-Set (Expo)
 import { GeneratedMeta, LocalAISummarizer } from '../../services/LocalAISummarizer';
 import { ArticlePayload, uploadToContao } from '../../services/uploadToContao';
 import { sanitizeHtmlForUpload } from '../../utils/htmlSanitizeForUpload';
 import { htmlToPlainText } from '../../utils/htmlToPlainText';
 
-type SmallButtonProps = {
-  title?: string;
-  onPress?: () => void;
-  iconName?: React.ComponentProps<typeof Ionicons>['name'];
-  variant?: 'primary' | 'link' | 'danger';
-  style?: any;
-};
-
-function SmallButton({ title, onPress, iconName, variant = 'link', style }: SmallButtonProps) {
-  const isPrimary = variant === 'primary';
-  const isDanger = variant === 'danger';
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[
-        oneStyles.smallBase,
-        isPrimary ? oneStyles.smallPrimary : isDanger ? oneStyles.smallDanger : oneStyles.smallLink,
-        style,
-      ]}
-      activeOpacity={0.8}
-    >
-      {iconName ? (
-        <Ionicons
-          name={iconName}
-          size={16}
-          color={isPrimary || isDanger ? '#fff' : '#0a7ea4'}
-          style={{ marginRight: title ? 8 : 0 }}
-        />
-      ) : null}
-      {title ? (
-        <Text style={isPrimary || isDanger ? oneStyles.smallTextLight : oneStyles.smallTextLink}>
-          {title}
-        </Text>
-      ) : null}
-    </TouchableOpacity>
-  );
-}
 
 export default function ArticleScreen() {
   const [websites, setWebsites] = useState<WebsiteConfig[]>([]);
@@ -604,17 +566,20 @@ export default function ArticleScreen() {
   return (
     <ScrollView
       style={globalStyles.screenContainer}
-      contentContainerStyle={oneStyles.containerContent}
+      contentContainerStyle={globalStyles.scrollContent}
       keyboardShouldPersistTaps="handled"
     >
       {websites.length === 0 ? (
-        <Text style={{ color: '#999', marginBottom: 16 }}>
-          Noch keine Webseiten konfiguriert. Bitte im Tab "Einstellungen" anlegen.
+        <Text style={globalStyles.noContentTextColor}>
+          <Text style={{ fontWeight: 'bold' }}>
+          Noch keine Webseiten konfiguriert.{'\n'}
+          Bitte im Tab "Einstellungen" anlegen.
+          </Text>
         </Text>
       ) : (
         <>
-          <View style={oneStyles.row}>
-            <View style={oneStyles.column}>
+          <View style={globalStyles.row}>
+            <View style={globalStyles.column}>
               <AppDropdown
                 label="Website"
                 placeholder="Website wählen..."
@@ -632,7 +597,7 @@ export default function ArticleScreen() {
                 }}
               />
             </View>
-            <View style={[oneStyles.column, { marginLeft: 8 }]}>
+            <View style={[globalStyles.column, { marginLeft: 8 }]}>
               <AppDropdown
                 label="Archiv"
                 placeholder="Archiv wählen..."
@@ -662,21 +627,22 @@ export default function ArticleScreen() {
           <TextInput
             style={globalStyles.input}
             placeholder="Artikel-Titel"
+            placeholderTextColor= 'rgba(255,255,255,0.4)'
             value={draft.title}
             onChangeText={handleChangeDraftTitle}
           />
 
-          <View style={[oneStyles.rowBetween, { marginTop: 20 }]}>
+          <View style={[globalStyles.rowBetween, { marginTop: 20,flexDirection: 'row', alignItems: 'stretch' }]}>
             <Text style={globalStyles.label}>Artikel</Text>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={[globalStyles.labelSmall]}>Veröffentlichung:</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap:8 }}>
+              <Text style={[globalStyles.labelSmall]}>Anzeigen:</Text>
               <SmallButton
                 iconName="calendar-outline"
                 title={draft.publishedAt ? formatDate(draft.publishedAt) : ''}
                 onPress={openDatePicker}
-                style={{ marginRight: 8 }}
               />
+
               <SmallButton
                 iconName="time-outline"
                 title={draft.publishedAt ? formatTime(draft.publishedAt) : ''}
@@ -705,6 +671,7 @@ export default function ArticleScreen() {
             <TextInput
               style={globalStyles.input}
               placeholder="z.B. Sport, Radsport, Gravelbike"
+              placeholderTextColor= 'rgba(255,255,255,0.4)'
               value={draft.keywords}
               onChangeText={keywords => {
                 setDraft(prev => ({ ...prev, keywords }));
@@ -715,12 +682,14 @@ export default function ArticleScreen() {
 
           {/* Bild-Bereich */}
           <View style={oneStyles.imageWrapper}>
-            <View style={oneStyles.rowBetween}>
+            <View style={globalStyles.rowEnd}>
+              {/* 
               <Text style={globalStyles.label}>Bild</Text>
-
+              */}
+              
               <SmallButton
                 iconName="camera-outline"
-                title={draft.image ? 'Foto austauschen' : 'Foto hinzufügen'}
+                title={draft.image ? 'Foto austauschen' : 'Foto'}
                 onPress={handlePhotoButtonPress}
               />
             </View>
@@ -735,6 +704,7 @@ export default function ArticleScreen() {
                 <TextInput
                   style={[globalStyles.input, oneStyles.imageAltInput]}
                   placeholder="Kurze Bildbeschreibung einfügen"
+                  placeholderTextColor= 'rgba(255,255,255,0.4)'
                   value={draft.image.alt}
                   onChangeText={alt => {
                     setDraft(prev => ({
@@ -748,7 +718,6 @@ export default function ArticleScreen() {
                   <SmallButton
                     iconName="trash-outline"
                     title="Bild entfernen"
-                    variant="danger"
                     onPress={() => {
                       setDraft(prev => ({ ...prev, image: null }));
                       scheduleAutoSave();
@@ -759,13 +728,17 @@ export default function ArticleScreen() {
             )}
           </View>
 
+          {/* 
           <View style={oneStyles.saveRow}>
             <AppButton title="Entwurf speichern" variant="link" onPress={handleSave} />
           </View>
+          */}
 
           {/* Publish Button */}
           <View style={oneStyles.publishRow}>
-            <AppButton title="Artikel veröffentlichen" variant="primary" onPress={handlePublish} />
+            <Button className="btn btnPublish" onPress={handlePublish}>
+              Veröffentlichen
+            </Button>
           </View>
         </>
       ) : (
@@ -797,8 +770,8 @@ export default function ArticleScreen() {
 
       {/* Modal: manuelle Meta-Eingabe */}
       <Modal visible={showManualMetaModal} animationType="slide" transparent={true}>
-        <View style={oneStyles.modalBackdrop}>
-          <View style={oneStyles.modalContainer}>
+        <View style={globalStyles.modalBackdrop}>
+          <View style={globalStyles.modalContainer}>
             <Text style={{ fontWeight: '700', marginBottom: 8 }}>Meta-Felder bearbeiten</Text>
 
             <Text style={globalStyles.label}>Meta Title</Text>
@@ -826,9 +799,9 @@ export default function ArticleScreen() {
 
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
               <View style={{ marginRight: 8 }}>
-                <AppButton title="Abbrechen" variant="link" onPress={handleCancelManualMeta} />
+                <Button className="btn btnCancel" onPress={handleCancelManualMeta}>Abbrechen</Button>
               </View>
-              <AppButton title="Veröffentlichen" variant="primary" onPress={handleConfirmManualMeta} />
+              <Button  className="btn btnPublish" onPress={handleConfirmManualMeta}>Veröffentlichen</Button>
             </View>
           </View>
         </View>
