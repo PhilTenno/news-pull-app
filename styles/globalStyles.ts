@@ -3,6 +3,22 @@ import { StyleSheet } from 'react-native';
 import { theme } from './theme';
 
 export const globalStyles = StyleSheet.create({
+  startContainer: {
+    display:'flex',
+    flexDirection:'column',
+    alignItems:'center',
+    justifyContent:'center',
+    width:'100%',
+    height:'100%',
+    backgroundColor: theme.colors.background,
+  },
+  mainTitle: {
+    fontSize: theme.fontSizes.xs,
+    fontWeight: '300',
+    marginBottom: theme.spacing.md,
+    color: theme.colors.text,
+    fontFamily: theme.fonts.regular,
+  },
   screenContainer: {
     flex: 1,
     padding: theme.spacing.md,
