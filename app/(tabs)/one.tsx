@@ -670,7 +670,7 @@ export default function ArticleScreen() {
             <Text style={globalStyles.label}>Artikel</Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={[globalStyles.labelSmall]}>Veröffentlichung:</Text>
+              <Text style={[globalStyles.labelSmall]}>Anzeigen:</Text>
               <SmallButton
                 iconName="calendar-outline"
                 title={draft.publishedAt ? formatDate(draft.publishedAt) : ''}
@@ -715,12 +715,14 @@ export default function ArticleScreen() {
 
           {/* Bild-Bereich */}
           <View style={oneStyles.imageWrapper}>
-            <View style={oneStyles.rowBetween}>
+            <View style={oneStyles.rowEnd}>
+              {/* 
               <Text style={globalStyles.label}>Bild</Text>
-
+              */}
+              
               <SmallButton
                 iconName="camera-outline"
-                title={draft.image ? 'Foto austauschen' : 'Foto hinzufügen'}
+                title={draft.image ? 'Foto austauschen' : 'Foto'}
                 onPress={handlePhotoButtonPress}
               />
             </View>
@@ -759,13 +761,15 @@ export default function ArticleScreen() {
             )}
           </View>
 
+          {/* 
           <View style={oneStyles.saveRow}>
             <AppButton title="Entwurf speichern" variant="link" onPress={handleSave} />
           </View>
+          */}
 
           {/* Publish Button */}
           <View style={oneStyles.publishRow}>
-            <AppButton title="Artikel veröffentlichen" variant="primary" onPress={handlePublish} />
+            <AppButton title="veröffentlichen" variant="primary" onPress={handlePublish} />
           </View>
         </>
       ) : (

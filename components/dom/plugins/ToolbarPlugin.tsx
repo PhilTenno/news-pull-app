@@ -302,8 +302,8 @@ export default function ToolbarPlugin() {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
     padding: 6,
     borderRadius: 6,
     border: "none",
@@ -318,20 +318,26 @@ export default function ToolbarPlugin() {
 
   return (
     <div
-      style={{
-        display: "flex",
+      className="toolBar" 
+      style={{        
+        position:'sticky',
+        top:0,
+        display: "flex",                
         flexWrap: "wrap",
-        gap: 1,
-        borderBottomWidth: 1,
-        borderBottomColor: "#ddd",
-        padding: 8,
+        justifyContent:'space-between',
+        gap: 4,
+        paddingBlock: 8,
+        paddingInline:2,
+        backgroundColor:'#ffffff',
+        borderRadius:6,
+        zIndex:1,
       }}
     >
       {/* Block-Typ Auswahl */}
       <select
         value={blockType}
         onChange={(e) => applyBlockType(e.target.value as HeadingTag)}
-        style={{ paddingBlock:4,paddingInline:8,paddingInlineStart:12}}
+        style={{ paddingBlock:4,paddingInline:8,paddingInlineStart:10,maxWidth:80}}
       >
         <option value="paragraph">Absatz</option>
         <option value="h2">Überschrift 2</option>

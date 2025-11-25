@@ -16,6 +16,12 @@ export const oneStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  rowEnd: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
 
   // Date buttons
   dateButton: {

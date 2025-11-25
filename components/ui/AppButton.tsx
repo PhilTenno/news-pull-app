@@ -56,6 +56,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    color:'#000',
   },
   primary: {
     backgroundColor: theme.colors.primary,
