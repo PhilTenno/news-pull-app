@@ -636,7 +636,7 @@ export default function ArticleScreen() {
             <Text style={globalStyles.label}>Artikel</Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap:8 }}>
-              <Text style={[globalStyles.labelSmall]}>Anzeigen:</Text>
+              <Text style={[globalStyles.labelSmall]}>veröffentlichen:</Text>
               <SmallButton
                 iconName="calendar-outline"
                 title={draft.publishedAt ? formatDate(draft.publishedAt) : ''}

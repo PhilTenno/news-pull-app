@@ -40,15 +40,13 @@ export function AppDropdown({
         iconStyle={styles.iconStyle}
         data={dropdownData}
         //search
-        maxHeight={300}
+        maxHeight={500}
         labelField="label"
         valueField="value"
         placeholder={placeholder}
         searchPlaceholder="Suchen..."
         value={selectedId ?? ''}
-        onChange={(item) => {
-          onSelectId(item.value);
-        }}
+        onChange={(item) => {onSelectId(item.value);}}
       />
     </View>
   );
@@ -68,11 +66,12 @@ const styles = StyleSheet.create({
     fontSize:theme.fontSizes.sm,
   },
   dropdown: {
-    height: 50,
+    height:40,
     borderColor:theme.colors.border,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
+    paddingVertical:6,
     backgroundColor: theme.colors.modalInput,
   },
   placeholderStyle: {
@@ -91,5 +90,5 @@ const styles = StyleSheet.create({
   iconStyle: {
     width: 20,
     height: 20,
-  },
+  } 
 });
