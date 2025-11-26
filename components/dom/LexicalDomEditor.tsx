@@ -1,28 +1,36 @@
+// components/dom/LexicalDomEditor.tsx
 "use dom";
 
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { ContentEditable, type ContentEditableProps } from "@lexical/react/LexicalContentEditable";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import {
+  ContentEditable,
+  type ContentEditableProps,
+} from "@lexical/react/LexicalContentEditable";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { $getRoot, type EditorState } from "lexical";
-import React, { useEffect, useState } from "react";
-import ToolbarPlugin from "./plugins/ToolbarPlugin";
+import React, { useEffect, useRef } from "react";
 
-import { AutoLinkNode, LinkNode } from "@lexical/link";
+import { AutoLinkNode, LinkNode } from "@lexical/link"; // <-- import both nodes
 import { ListItemNode, ListNode } from "@lexical/list";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { HeadingNode } from "@lexical/rich-text";
 import AutoLinkPlugin from "./plugins/AutoLinkPlugin";
+import ToolbarPlugin from "./plugins/ToolbarPlugin";
 
 export type LexicalDomEditorProps = {
+  /** HTML‑String that represents the editor content */
   value: string;
+  /** Called whenever the editor changes (new HTML) */
   onChange?: (html: string) => void;
+  /** Optional read‑only mode – not used in the current app but kept for future extension */
   readOnly?: boolean;
+  /** Optional style overrides (e.g. height) */
   dom?: {
     style?: { height?: number; [key: string]: any };
     matchContents?: boolean;
@@ -32,122 +40,110 @@ export type LexicalDomEditorProps = {
 
 const placeholder = "Gib deinen Artikeltext ein…";
 
-/**
- * Wichtig: Theme als Objekt (nicht Funktion) und mit text.underline
- * Dadurch hängt Lexical die Klasse an die gerenderten Elemente, sodass
- * Underline sichtbar wird (z. B. class="underline" => text-decoration)
- */
+/* ------------------------------------------------------------------ */
+/* Lexical theme – the `underline` class is mapped to a CSS rule   */
+/* ------------------------------------------------------------------ */
 const theme = {
   text: {
     bold: "font-bold",
     italic: "italic",
-    underline: "underline", // <-- zentrale Änderung: sorgt dafür, dass Underline sichtbar wird
+    underline: "underline",
     strikethrough: "line-through",
     subscript: "align-sub",
     superscript: "align-super",
   },
-  // du kannst hier später noch paragraph/heading/list/etc. ergänzen
 };
 
 function onError(error: Error) {
   console.error("Lexical Editor Error:", error);
 }
 
+/* ------------------------------------------------------------------ */
+/* Synchronise the external `value` prop with the internal editor.   */
+/* The update is performed **without** triggering change events,    */
+/* so that `onChange` in the parent does not re‑enter this function.*/
+/* ------------------------------------------------------------------ */
 function ExternalHtmlSyncPlugin({ html }: { html: string }) {
   const [editor] = useLexicalComposerContext();
+  const prevHtmlRef = useRef<string>("");
 
   useEffect(() => {
-    if (html == null) return;
-    if (typeof window === "undefined" || typeof document === "undefined") return;
+    if (!editor || !html) return;
+
+    // Only update when the incoming HTML actually changed
+    if (prevHtmlRef.current === html) return;
 
     editor.update(() => {
       const root = $getRoot();
       const currentHtml = $generateHtmlFromNodes(editor, null);
-      if (currentHtml === html) {
-        return;
-      }
 
-      if (!html || html.trim().length === 0) {
-        root.clear();
-        return;
-      }
+      if (currentHtml === html) return; // nothing to do
 
+      root.clear();
       const domParser = new DOMParser();
       const dom = domParser.parseFromString(html, "text/html");
-      root.clear();
       const nodes = $generateNodesFromDOM(editor, dom.body);
-      nodes.forEach(node => root.append(node));
-      root.select();
+      nodes.forEach((node) => root.append(node));
     });
+
+    prevHtmlRef.current = html;
   }, [html, editor]);
 
   return null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Main component – no `editorState` is used; the editor keeps its    */
+/* internal state and only syncs with `value` via ExternalHtmlSyncPlugin.*/
+/* ------------------------------------------------------------------ */
 export default function LexicalDomEditor(props: LexicalDomEditorProps) {
-  const [initialHtml] = useState(props.value ?? "");
+  const { value, onChange, readOnly = false, dom } = props;
+  const containerStyle = dom?.style ?? {};
 
-  const initialConfig = {
-    namespace: "NewsPullEditor",
-    theme,
-    onError,
-    nodes: [HeadingNode, ListNode, ListItemNode, LinkNode, AutoLinkNode],
-    editorState: (editor: any) => {
-      const value = initialHtml;
-      if (!value || value.trim().length === 0) {
-        return;
-      }
-
-      editor.update(() => {
-        const root = $getRoot();
-        const domParser = new DOMParser();
-        const dom = domParser.parseFromString(value, "text/html");
-        root.clear();
-        const nodes = $generateNodesFromDOM(editor, dom.body);
-        nodes.forEach((node) => {
-          root.append(node);
-        });
-      });
-    },
-  };
-
+  /* -------------------------------------------------------------- */
+  /* Handle internal editor changes – forward new HTML to parent.   */
+  /* -------------------------------------------------------------- */
   const handleChange = (editorState: EditorState, editor: any) => {
     editorState.read(() => {
-      const html = $generateHtmlFromNodes(editor, null);
-      if (props.onChange) {
-        props.onChange(html);
+      const newHtml = $generateHtmlFromNodes(editor, null);
+      if (newHtml !== value) {
+        onChange?.(newHtml);
       }
     });
   };
 
-  // ContentEditable props
+  /* -------------------------------------------------------------- */
+  /* Editor configuration – no initial `editorState` to avoid re‑init. */
+  /* -------------------------------------------------------------- */
+  const initialConfig = {
+    namespace: "NewsPullEditor",
+    theme,
+    onError,
+    nodes: [HeadingNode, ListNode, ListItemNode, LinkNode, AutoLinkNode], // <-- include AutoLinkNode
+  };
+
+  /* -------------------------------------------------------------- */
+  /* ContentEditable props – placeholder is required by the type.   */
+  /* -------------------------------------------------------------- */
   const contentEditableProps: ContentEditableProps = {
     className: "editor-input",
     "aria-placeholder": placeholder,
-    placeholder: <></>,
+    placeholder: <></>, // dummy element – actual UI handled by RichTextPlugin
   };
 
-  // container inline style kommt von props.dom?.style (z. B. height)
-  const containerStyle = props.dom?.style ?? {};
-  
-
-
-
-  // --- NEU ---
-  // Inject very-specific strong overrides to neutralize UA blue focus ring (idempotent)
+  /* -------------------------------------------------------------- */
+  /* Inject custom CSS to style the editor and remove default focus ring. */
+  /* -------------------------------------------------------------- */
   useEffect(() => {
     if (typeof document === "undefined") return;
-    if (document.querySelector('style[data-editor-theme-fix]')) return;
+    if (document.querySelector("style[data-editor-theme-fix]")) return;
 
     const css = `
-      /* ensure editor input uses logical padding-inline */
-      .editor-container {
-        width:100%;
-      }
-      .editor-container .editor-input,
-      .editor-container .editor-input[contenteditable="true"],
-      .editor-container .editor-inner [contenteditable],
-      .editor-container .editor-inner [contenteditable="true"] {
+      .editor-container { width:100%; }
+      .editor-input,
+      .editor-input[contenteditable="true"],
+      .editor-inner [contenteditable],
+      .editor-inner [contenteditable="true"] {
         padding-block: 0 8px !important;
         padding-inline: 12px 4px !important;
         font-family:'Roboto',sans-serif;
@@ -162,46 +158,15 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
         color:#efefef;
         padding-inline: 8px 4px !important;
       }
-      /* very specific overrides for editor focus to neutralize UA blue ring */
-      .editor-container .editor-input:focus,
-      .editor-container .editor-input[contenteditable="true"]:focus,
-      .editor-container .editor-inner [contenteditable]:focus,
-      .editor-container .editor-inner [contenteditable="true"]:focus,
-      .editor-container .editor-input *:focus,
-      .editor-container .editor-inner [contenteditable] *:focus,
-      .editor-container [data-lexical-editor] :focus {
-        outline: 0 !important;
-        outline-style: none !important;
-        outline-color: transparent !important;
-        outline-width: 0 !important;
-        outline-offset: 0 !important;
-        box-shadow: none !important;
-        -webkit-box-shadow: none !important;
-        -moz-box-shadow: none !important;
-        border-color: inherit !important;
-        -webkit-focus-ring-color: transparent !important;
-        -moz-outline-color: transparent !important;
+      .editor-input:focus,
+      .editor-input[contenteditable="true"]:focus,
+      .editor-inner [contenteditable]:focus,
+      .editor-inner [contenteditable="true"]:focus {
+        outline:none !important;
+        box-shadow:none !important;
       }
-      /* Underline für Lexical-Textnodes */
-      .editor-input .underline,
-      .editor-inner .underline,
-      .editor-container .underline,
-      .underline {
-        text-decoration: underline !important;
-      }
-
-      /* remove any :focus-visible ring as requested */
-      .editor-container .editor-input:focus-visible,
-      .editor-container .editor-input[contenteditable="true"]:focus-visible,
-      .editor-container .editor-inner [contenteditable]:focus-visible,
-      .editor-container .editor-inner [contenteditable="true"]:focus-visible,
-      .editor-container .editor-input *:focus-visible,
-      .editor-container .editor-inner [contenteditable] *:focus-visible {
-        outline: 0 !important;
-        box-shadow: none !important;
-        -webkit-box-shadow: none !important;
-        border-color: inherit !important;
-      }
+      .underline { text-decoration: underline !important; }
+      a {color:#efefef !important;text-decoration:underline}
     `;
 
     const style = document.createElement("style");
@@ -209,26 +174,23 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
     style.textContent = css;
     document.head.appendChild(style);
 
-    return () => {
-      style.remove();
-    };
+    return () => style.remove();
   }, []);
-  // --- ENDE NEU ---
 
+  /* -------------------------------------------------------------- */
+  /* Render the editor.                                               */
+  /* -------------------------------------------------------------- */
   return (
     <div className="editor-container" style={containerStyle}>
-
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin />
-        <ExternalHtmlSyncPlugin html={props.value ?? ""} />
+        <ExternalHtmlSyncPlugin html={value ?? ""} />
+
         <div className="editor-inner" style={{ position: "relative" }}>
           <RichTextPlugin
             contentEditable={<ContentEditable {...contentEditableProps} />}
             placeholder={
-              <div
-                className="editor-placeholder"
-                style={{ position: "absolute", top: 0, left: 5, color: "#efefef", zIndex: -1 }}
-              >
+              <div className="editor-placeholder" style={{ position: "absolute", top: 0, left: 5 }}>
                 {placeholder}
               </div>
             }
