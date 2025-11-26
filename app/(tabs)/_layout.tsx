@@ -1,5 +1,6 @@
 // app/(tabs)/_layout.tsx
 import Colors from '@/constants/Colors';
+import i18n from '@/utils/i18n';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
@@ -30,23 +31,22 @@ export default function TabsLayout() {
           fontWeight: '600',
           display:'flex',
           justifyContent:'center'
-          
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: '',
           tabBarIcon: ({ color, size }) => (
             <FontAwesome6 name="house" size={size} color={color} />
           ),
+          title: i18n.t('tabs.home'),
         }}
       />
       <Tabs.Screen
         name="one"
         options={{
-          title: 'Artikel',
+          title: i18n.t('tabs.articles'),
           tabBarIcon: ({ color, size }) => (
             <FontAwesome6 name="file-lines" size={size} color={color} />
           ),
@@ -55,7 +55,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Einstellungen',
+          title: i18n.t('tabs.settings'),
           tabBarIcon: ({ color, size }) => (
             <FontAwesome6 name="gear" size={size} color={color} />
           ),

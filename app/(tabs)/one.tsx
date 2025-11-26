@@ -35,12 +35,11 @@ import {
 } from '../../storage/settingsStorage';
 import { oneStyles } from '../../styles/one.styles';
 
-// Neue Imports
+import i18n from '@/utils/i18n';
 import { GeneratedMeta, LocalAISummarizer } from '../../services/LocalAISummarizer';
 import { ArticlePayload, uploadToContao } from '../../services/uploadToContao';
 import { sanitizeHtmlForUpload } from '../../utils/htmlSanitizeForUpload';
 import { htmlToPlainText } from '../../utils/htmlToPlainText';
-
 
 export default function ArticleScreen() {
   const [websites, setWebsites] = useState<WebsiteConfig[]>([]);
@@ -116,7 +115,7 @@ export default function ArticleScreen() {
           setSelectedWebsiteId(firstWebsiteId);
           setSelectedArchiveId(firstArchiveId);
         } catch (err) {
-          console.error('Fehler beim Laden der Webseiten:', err);
+          console.error(i18n.t('errorLoadWebsites'), err);
         } finally {
           setLoading(false);
         }
@@ -244,11 +243,11 @@ export default function ArticleScreen() {
     if (!selectedWebsiteId || !selectedArchiveId) return;
     try {
       await saveDraft(selectedWebsiteId, selectedArchiveId, d);
-      console.log('Draft gespeichert');
+      console.log(i18n.t('draftSaved'));
       setDraftDirty(false);
       lastSavedKeyRef.current = computeDraftKey(d);
     } catch (e) {
-      console.error('Fehler beim Speichern:', e);
+      console.error(i18n.t('errorSavingDraft'), e);
     }
   };
 
@@ -291,7 +290,7 @@ export default function ArticleScreen() {
       );
       return manipulated.uri;
     } catch (e) {
-      console.warn('Bildmanipulation fehlgeschlagen, verwende Original:', e);
+      console.warn(i18n.t('imageProcessingFailed'), e);
       return uri;
     }
   };
@@ -300,8 +299,8 @@ export default function ArticleScreen() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        'Zugriff benötigt',
-        'Bitte erlaube den Zugriff auf deine Fotos, um ein Bild auswählen zu können.'
+        i18n.t('accessRequired'),
+        i18n.t('allowPhotoAccess')
       );
       return;
     }
@@ -333,8 +332,8 @@ export default function ArticleScreen() {
 
       if (!permissionResult.granted) {
         Alert.alert(
-          'Kamera-Zugriff benötigt',
-          'Bitte erlaube den Zugriff auf die Kamera, um ein Foto aufnehmen zu können.'
+          i18n.t('cameraAccessRequired'),
+          i18n.t('allowCameraAccess')
         );
         return;
       }
@@ -361,12 +360,12 @@ export default function ArticleScreen() {
     } catch (err: any) {
       if (String(err?.message || err).includes('Camera not available on simulator')) {
         Alert.alert(
-          'Kamera nicht verfügbar',
-          'Die Kamera steht im iOS-Simulator nicht zur Verfügung. Bitte teste auf einem echten Gerät.'
+          i18n.t('cameraNotAvailable'),
+          i18n.t('cameraNotAvailableSimulator')
         );
       } else {
         console.error(err);
-        Alert.alert('Fehler', 'Beim Öffnen der Kamera ist ein Fehler aufgetreten.');
+        Alert.alert(i18n.t('error'), i18n.t('cameraError'));
       }
     }
   };
@@ -374,8 +373,8 @@ export default function ArticleScreen() {
   const handlePhotoButtonPress = () => {
     ActionSheetIOS.showActionSheetWithOptions(
       {
-        title: draft.image ? 'Foto austauschen' : 'Foto hinzufügen',
-        options: ['Foto aufnehmen', 'Aus Galerie wählen', 'Abbrechen'],
+        title: draft.image ? i18n.t('replacePhoto') : i18n.t('addPhoto'),
+        options: [i18n.t('takePhoto'), i18n.t('chooseFromGallery'), i18n.t('cancel')],
         cancelButtonIndex: 2,
       },
       buttonIndex => {
@@ -406,15 +405,15 @@ export default function ArticleScreen() {
 
   const handlePublish = async () => {
     if (!draft.title || draft.title.trim().length === 0) {
-      Alert.alert('Fehler', 'Bitte gib einen Titel ein.');
+      Alert.alert(i18n.t('error'), i18n.t('enterTitle'));
       return;
     }
     if (!draft.contentHtml || draft.contentHtml.trim().length === 0) {
-      Alert.alert('Fehler', 'Bitte füge Inhalt zum Artikel hinzu.');
+      Alert.alert(i18n.t('error'), i18n.t('addArticleContent'));
       return;
     }
     if (!selectedWebsite || !selectedArchive) {
-      Alert.alert('Fehler', 'Bitte wähle Website und Archiv aus.');
+      Alert.alert(i18n.t('error'), i18n.t('selectWebsiteAndArchive'));
       return;
     }
 
@@ -424,7 +423,7 @@ export default function ArticleScreen() {
 
     try {
       setIsPublishing(true);
-      setPublishStatusText('Artikel wird vorbereitet…');
+      setPublishStatusText(i18n.t('preparingArticle'));
 
       const sanitizedHtml = sanitizeHtmlForUpload(draft.contentHtml ?? '');
       const plain = htmlToPlainText(sanitizedHtml);
@@ -433,10 +432,10 @@ export default function ArticleScreen() {
 
       let meta: GeneratedMeta;
       if (nativeAvailable) {
-        setPublishStatusText('Meta-Daten werden generiert…');
+        setPublishStatusText(i18n.t('generatingMetadata'));
         meta = await LocalAISummarizer.generate(draft.title, plain);
       } else {
-        setPublishStatusText('Meta-Daten (manuell) vorbereiten…');
+        setPublishStatusText(i18n.t('preparingManualMetadata'));
         const generated = await LocalAISummarizer.generate(draft.title, plain);
         setManualMeta(generated);
         setShowManualMetaModal(true);
@@ -454,7 +453,7 @@ export default function ArticleScreen() {
         imageAlt: draft.image?.alt ?? '',
       };
 
-      setPublishStatusText('Artikel wird gesendet…');
+      setPublishStatusText(i18n.t('sendingArticle'));
 
       const endpoint = `${selectedWebsite.baseUrl.replace(/\/$/, '')}/newspullimport`;
       const token = selectedArchive.apiToken ?? '';
@@ -462,30 +461,30 @@ export default function ArticleScreen() {
       const result = await uploadToContao(payloadItem, draft.image?.uri ?? null, token, endpoint);
 
       if (result.ok) {
-        setPublishStatusText('Artikel übertragen ✅');
+        setPublishStatusText(i18n.t('articleTransmitted'));
 
         try {
           if (selectedWebsiteId && selectedArchiveId) {
             await deleteDraft(selectedWebsiteId, selectedArchiveId);
-            console.log('Lokaler Draft gelöscht nach erfolgreichem Upload.');
+            console.log(i18n.t('localDraftDeleted'));
           }
         } catch (err) {
-          console.warn('Fehler beim Löschen des Drafts:', err);
+          console.warn(i18n.t('errorDeletingDraft'), err);
         }
 
         setDraft(emptyDraft);
         setDraftDirty(false);
         lastSavedKeyRef.current = computeDraftKey(emptyDraft);
 
-        Alert.alert('Erfolgreich', 'Artikel wurde veröffentlicht und lokaler Entwurf gelöscht.');
+        Alert.alert(i18n.t('success'), i18n.t('articlePublishedAndDeleted'));
       } else {
         console.warn('Upload failed', result.status, result.body);
-        setPublishStatusText(`Fehler beim Senden (${result.status})`);
-        Alert.alert('Fehler', 'Der Upload ist fehlgeschlagen. Server antwortet: ' + String(result.body));
+        setPublishStatusText(`${i18n.t('sendError')} (${result.status})`);
+        Alert.alert(i18n.t('error'), i18n.t('uploadFailed') + String(result.body));
       }
     } catch (e) {
-      console.error('Publish error:', e);
-      Alert.alert('Fehler', 'Beim Veröffentlichen ist ein Fehler aufgetreten.');
+      console.error(i18n.t('publishError'), e);
+      Alert.alert(i18n.t('error'), i18n.t('publishErrorOccurred'));
     } finally {
       setTimeout(() => {
         setIsPublishing(false);
@@ -499,7 +498,7 @@ export default function ArticleScreen() {
 
     try {
       setIsPublishing(true);
-      setPublishStatusText('Artikel wird gesendet…');
+      setPublishStatusText(i18n.t('sendingArticle'));
       const sanitizedHtml = sanitizeHtmlForUpload(draft.contentHtml ?? '');
       const payloadItem: ArticlePayload = {
         title: draft.title,
@@ -518,29 +517,29 @@ export default function ArticleScreen() {
       const result = await uploadToContao(payloadItem, draft.image?.uri ?? null, token, endpoint);
 
       if (result.ok) {
-        setPublishStatusText('Artikel übertragen ✅');
+        setPublishStatusText(i18n.t('articleTransmitted'));
 
         try {
           if (selectedWebsiteId && selectedArchiveId) {
             await deleteDraft(selectedWebsiteId, selectedArchiveId);
-            console.log('Lokaler Draft gelöscht nach erfolgreichem Upload (manuelle Meta).');
+            console.log(i18n.t('localDraftDeletedManual'));
           }
         } catch (err) {
-          console.warn('Fehler beim Löschen des Drafts:', err);
+          console.warn(i18n.t('errorDeletingDraft'), err);
         }
 
         setDraft(emptyDraft);
         setDraftDirty(false);
         lastSavedKeyRef.current = computeDraftKey(emptyDraft);
 
-        Alert.alert('Erfolgreich', 'Artikel wurde veröffentlicht und lokaler Entwurf gelöscht.');
+        Alert.alert(i18n.t('success'), i18n.t('articlePublishedAndDeleted'));
       } else {
-        setPublishStatusText(`Fehler beim Senden (${result.status})`);
-        Alert.alert('Fehler', 'Der Upload ist fehlgeschlagen. Überprüfe die Server-Antwort.');
+        setPublishStatusText(`${i18n.t('sendError')} (${result.status})`);
+        Alert.alert(i18n.t('error'), i18n.t('uploadFailedCheckResponse'));
       }
     } catch (e) {
-      console.error('Publish manual error:', e);
-      Alert.alert('Fehler', 'Beim Veröffentlichen ist ein Fehler aufgetreten.');
+      console.error(i18n.t('publishManualError'), e);
+      Alert.alert(i18n.t('error'), i18n.t('publishErrorOccurred'));
     } finally {
       setTimeout(() => {
         setIsPublishing(false);
@@ -572,8 +571,7 @@ export default function ArticleScreen() {
       {websites.length === 0 ? (
         <Text style={globalStyles.noContentTextColor}>
           <Text style={{ fontWeight: 'bold' }}>
-          Noch keine Webseiten konfiguriert.{'\n'}
-          Bitte im Tab "Einstellungen" anlegen.
+            {i18n.t('noWebsitesConfigured')}
           </Text>
         </Text>
       ) : (
@@ -581,8 +579,8 @@ export default function ArticleScreen() {
           <View style={globalStyles.row}>
             <View style={globalStyles.column}>
               <AppDropdown
-                label="Website"
-                placeholder="Website wählen..."
+                label={i18n.t('website')}
+                placeholder={i18n.t('chooseWebsite')}
                 items={websites.map(w => ({ id: w.id, label: w.name }))}
                 selectedId={selectedWebsiteId}
                 onSelectId={async id => {
@@ -599,8 +597,8 @@ export default function ArticleScreen() {
             </View>
             <View style={[globalStyles.column, { marginLeft: 8 }]}>
               <AppDropdown
-                label="Archiv"
-                placeholder="Archiv wählen..."
+                label={i18n.t('archive')}
+                placeholder={i18n.t('chooseArchive')}
                 items={archives.map(a => ({ id: a.id, label: a.name }))}
                 selectedId={selectedArchiveId}
                 onSelectId={async id => {
@@ -615,7 +613,7 @@ export default function ArticleScreen() {
 
           {selectedWebsite && archives.length === 0 && (
             <Text style={{ color: '#999', marginBottom: 16 }}>
-              Für diese Website sind noch keine Archive angelegt.
+              {i18n.t('noArchivesForWebsite')}
             </Text>
           )}
         </>
@@ -623,20 +621,20 @@ export default function ArticleScreen() {
 
       {selectedWebsite && selectedArchive ? (
         <>
-          <Text style={globalStyles.label}>Titel</Text>
+          <Text style={globalStyles.label}>{i18n.t('title')}</Text>
           <TextInput
             style={globalStyles.input}
-            placeholder="Artikel-Titel"
-            placeholderTextColor= 'rgba(255,255,255,0.4)'
+            placeholder={i18n.t('articleTitle')}
+            placeholderTextColor='rgba(255,255,255,0.4)'
             value={draft.title}
             onChangeText={handleChangeDraftTitle}
           />
 
-          <View style={[globalStyles.rowBetween, { marginTop: 20,flexDirection: 'row', alignItems: 'stretch' }]}>
-            <Text style={globalStyles.label}>Artikel</Text>
+          <View style={[globalStyles.rowBetween, { marginTop: 20, flexDirection: 'row', alignItems: 'stretch' }]}>
+            <Text style={globalStyles.label}>{i18n.t('article')}</Text>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap:8 }}>
-              <Text style={[globalStyles.labelSmall]}>veröffentlichen:</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={[globalStyles.labelSmall]}>{i18n.t('publishOn')}</Text>
               <SmallButton
                 iconName="calendar-outline"
                 title={draft.publishedAt ? formatDate(draft.publishedAt) : ''}
@@ -667,11 +665,11 @@ export default function ArticleScreen() {
           </View>
 
           <View style={oneStyles.keywordsContainer}>
-            <Text style={globalStyles.label}>Artikel-Keywords</Text>
+            <Text style={globalStyles.label}>{i18n.t('articleKeywords')}</Text>
             <TextInput
               style={globalStyles.input}
-              placeholder="z.B. Sport, Radsport, Gravelbike"
-              placeholderTextColor= 'rgba(255,255,255,0.4)'
+              placeholder={i18n.t('keywordsPlaceholder')}
+              placeholderTextColor='rgba(255,255,255,0.4)'
               value={draft.keywords}
               onChangeText={keywords => {
                 setDraft(prev => ({ ...prev, keywords }));
@@ -683,13 +681,9 @@ export default function ArticleScreen() {
           {/* Bild-Bereich */}
           <View style={oneStyles.imageWrapper}>
             <View style={globalStyles.rowEnd}>
-              {/* 
-              <Text style={globalStyles.label}>Bild</Text>
-              */}
-              
               <SmallButton
                 iconName="camera-outline"
-                title={draft.image ? 'Foto austauschen' : 'Foto'}
+                title={draft.image ? i18n.t('replacePhoto') : i18n.t('photo')}
                 onPress={handlePhotoButtonPress}
               />
             </View>
@@ -703,8 +697,8 @@ export default function ArticleScreen() {
                 />
                 <TextInput
                   style={[globalStyles.input, oneStyles.imageAltInput]}
-                  placeholder="Kurze Bildbeschreibung einfügen"
-                  placeholderTextColor= 'rgba(255,255,255,0.4)'
+                  placeholder={i18n.t('imageDescription')}
+                  placeholderTextColor='rgba(255,255,255,0.4)'
                   value={draft.image.alt}
                   onChangeText={alt => {
                     setDraft(prev => ({
@@ -717,7 +711,7 @@ export default function ArticleScreen() {
                 <View style={oneStyles.imageRemoveRow}>
                   <SmallButton
                     iconName="trash-outline"
-                    title="Bild entfernen"
+                    title={i18n.t('removeImage')}
                     onPress={() => {
                       setDraft(prev => ({ ...prev, image: null }));
                       scheduleAutoSave();
@@ -728,21 +722,15 @@ export default function ArticleScreen() {
             )}
           </View>
 
-          {/* 
-          <View style={oneStyles.saveRow}>
-            <AppButton title="Entwurf speichern" variant="link" onPress={handleSave} />
-          </View>
-          */}
-
           {/* Publish Button */}
           <View style={oneStyles.publishRow}>
             <Button className="btn btnPublish" onPress={handlePublish}>
-              Veröffentlichen
+              {i18n.t('publish')}
             </Button>
           </View>
         </>
       ) : (
-        <Text style={{ color: '#999' }}>Bitte eine Website und ein Archiv auswählen.</Text>
+        <Text style={{ color: '#999' }}>{i18n.t('selectWebsiteAndArchive')}</Text>
       )}
 
       <DateTimePickerModal
@@ -764,7 +752,7 @@ export default function ArticleScreen() {
       {isPublishing && (
         <View style={oneStyles.publishOverlay}>
           <ActivityIndicator size="large" color="#fff" />
-          <Text style={{ color: '#fff', marginTop: 8 }}>{publishStatusText ?? 'Bitte warten…'}</Text>
+          <Text style={{ color: '#fff', marginTop: 8 }}>{publishStatusText ?? i18n.t('pleaseWait')}</Text>
         </View>
       )}
 
@@ -772,16 +760,18 @@ export default function ArticleScreen() {
       <Modal visible={showManualMetaModal} animationType="slide" transparent={true}>
         <View style={globalStyles.modalBackdrop}>
           <View style={globalStyles.modalContainer}>
-            <Text style={{ fontWeight: '700', marginBottom: 8, color:'#efefef' }}>Meta-Felder bearbeiten</Text>
+            <Text style={{ fontWeight: '700', marginBottom: 8, color: '#efefef' }}>
+              {i18n.t('editMetaFields')}
+            </Text>
 
-            <Text style={globalStyles.label}>Meta Title</Text>
+            <Text style={globalStyles.label}>{i18n.t('metaTitle')}</Text>
             <TextInput
               style={globalStyles.input}
               value={manualMeta.metaTitle}
               onChangeText={metaTitle => setManualMeta(prev => ({ ...prev, metaTitle }))}
             />
 
-            <Text style={globalStyles.label}>Meta Description (140–160 Zeichen empfohlen)</Text>
+            <Text style={globalStyles.label}>{i18n.t('metaDescription')}</Text>
             <TextInput
               style={[globalStyles.input, { height: 90 }]}
               multiline
@@ -789,7 +779,7 @@ export default function ArticleScreen() {
               onChangeText={metaDescription => setManualMeta(prev => ({ ...prev, metaDescription }))}
             />
 
-            <Text style={globalStyles.label}>Teaser (250–400 Zeichen empfohlen)</Text>
+            <Text style={globalStyles.label}>{i18n.t('teaser')}</Text>
             <TextInput
               style={[globalStyles.input, { height: 120 }]}
               multiline
@@ -799,9 +789,13 @@ export default function ArticleScreen() {
 
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
               <View style={{ marginRight: 8 }}>
-                <Button className="btn btnCancel" onPress={handleCancelManualMeta}>Abbrechen</Button>
+                <Button className="btn btnCancel" onPress={handleCancelManualMeta}>
+                  {i18n.t('cancel')}
+                </Button>
               </View>
-              <Button  className="btn btnPublish" onPress={handleConfirmManualMeta}>Veröffentlichen</Button>
+              <Button className="btn btnPublish" onPress={handleConfirmManualMeta}>
+                {i18n.t('publish')}
+              </Button>
             </View>
           </View>
         </View>

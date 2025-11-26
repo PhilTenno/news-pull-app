@@ -1,3 +1,4 @@
+// app/(tabs)/two.tsx
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -18,6 +19,7 @@ import {
 import { globalStyles } from '@/styles/globalStyles';
 import { theme } from '@/styles/theme';
 import { twoStyles } from '@/styles/two.styles';
+import i18n from '@/utils/i18n';
 import { AppDropdown } from '../../components/AppDropdown';
 import Button from '../../components/ui/Button';
 import { deleteDraft } from '../../storage/articleDraftStorage';
@@ -103,16 +105,16 @@ export default function SettingsScreen() {
     const baseUrlInput = websiteModalBaseUrl.trim();
 
     if (!name) {
-      Alert.alert('Fehler', 'Bitte einen Namen für die Webseite eingeben.');
+      Alert.alert(i18n.t('error'), i18n.t('enterWebsiteName'));
       return;
     }
     if (!baseUrlInput) {
-      Alert.alert('Fehler', 'Bitte eine Basis-URL eingeben.');
+      Alert.alert(i18n.t('error'), i18n.t('enterBaseUrl'));
       return;
     }
 
     if (!isValidUrl(baseUrlInput)) {
-      Alert.alert('Fehler', 'Die Basis-URL ist ungültig.');
+      Alert.alert(i18n.t('error'), i18n.t('invalidBaseUrl'));
       return;
     }
 
@@ -141,12 +143,12 @@ export default function SettingsScreen() {
 
   const confirmDeleteWebsite = (website: WebsiteConfig) => {
     Alert.alert(
-      'Sicher?',
-      `Webseite "${website.name}" löschen? Alle zugehörigen Archive und lokalen Entwürfe werden entfernt.`,
+      i18n.t('deleteWebsiteConfirmTitle'),
+      i18n.t('deleteWebsiteConfirmMessage', { name: website.name }),
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: i18n.t('cancel'), style: 'cancel' },
         {
-          text: 'Löschen',
+          text: i18n.t('delete'),
           style: 'destructive',
           onPress: () => void handleDeleteWebsite(website.id),
         },
@@ -163,7 +165,7 @@ export default function SettingsScreen() {
           try {
             await deleteDraft(websiteId, archive.id);
           } catch (err) {
-            console.warn('Fehler beim Löschen eines Drafts:', err);
+            console.warn(i18n.t('deleteDraftError'), err);
           }
         }
       }
@@ -175,15 +177,15 @@ export default function SettingsScreen() {
         setSelectedWebsiteId(updated[0]?.id ?? null);
       }
     } catch (err) {
-      console.error('Fehler beim Löschen der Webseite:', err);
-      Alert.alert('Fehler', 'Beim Löschen der Webseite ist ein Fehler aufgetreten.');
+      console.error(i18n.t('deleteWebsiteError'), err);
+      Alert.alert(i18n.t('error'), i18n.t('deleteWebsiteError'));
     }
   };
 
   // === Archive actions ===
   const openAddArchiveModal = () => {
     if (!selectedWebsite) {
-      Alert.alert('Fehler', 'Bitte zuerst eine Webseite auswählen.');
+      Alert.alert(i18n.t('error'), i18n.t('selectWebsiteFirst'));
       return;
     }
     setArchiveModalMode('add');
@@ -206,16 +208,16 @@ export default function SettingsScreen() {
     const token = archiveModalToken.trim();
 
     if (!selectedWebsite) {
-      Alert.alert('Fehler', 'Keine Webseite ausgewählt.');
+      Alert.alert(i18n.t('error'), i18n.t('noWebsiteSelected'));
       return;
     }
 
     if (!name) {
-      Alert.alert('Fehler', 'Bitte einen Namen für das Archiv eingeben.');
+      Alert.alert(i18n.t('error'), i18n.t('enterArchiveName'));
       return;
     }
     if (!token) {
-      Alert.alert('Fehler', 'Bitte einen Token eingeben.');
+      Alert.alert(i18n.t('error'), i18n.t('enterToken'));
       return;
     }
 
@@ -250,12 +252,12 @@ export default function SettingsScreen() {
   const confirmDeleteArchive = (archiveId: string) => {
     const archive = selectedWebsite?.archives.find((a) => a.id === archiveId);
     Alert.alert(
-      'Sicher?',
-      `Archiv "${archive?.name ?? ''}" löschen? Alle zugehörigen lokalen Entwürfe werden entfernt.`,
+      i18n.t('deleteArchiveConfirmTitle'),
+      i18n.t('deleteArchiveConfirmMessage', { name: archive?.name ?? '' }),
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: i18n.t('cancel'), style: 'cancel' },
         {
-          text: 'Löschen',
+          text: i18n.t('delete'),
           style: 'destructive',
           onPress: () => void handleDeleteArchive(archiveId),
         },
@@ -270,7 +272,7 @@ export default function SettingsScreen() {
       try {
         await deleteDraft(selectedWebsite.id, archiveId);
       } catch (err) {
-        console.warn('Fehler beim Löschen des Drafts:', err);
+        console.warn(i18n.t('deleteDraftError'), err);
       }
 
       const updated = websites.map((w) =>
@@ -278,8 +280,8 @@ export default function SettingsScreen() {
       );
       await persistWebsites(updated);
     } catch (err) {
-      console.error('Fehler beim Löschen des Archivs:', err);
-      Alert.alert('Fehler', 'Beim Löschen des Archivs ist ein Fehler aufgetreten.');
+      console.error(i18n.t('deleteArchiveError'), err);
+      Alert.alert(i18n.t('error'), i18n.t('deleteArchiveError'));
     }
   };
 
@@ -288,16 +290,15 @@ export default function SettingsScreen() {
     <View style={twoStyles.archiveItem}>
       <View style={twoStyles.archiveMain}>
         <Text style={twoStyles.archiveName}>{item.name}</Text>
-        {/* <Text style={twoStyles.archiveDetailMasked}>Token: ••••••••••</Text> */}
       </View>
 
       <View style={twoStyles.archiveActions}>
         <Button className="btn btnEdit" onPress={() => openEditArchiveModal(item)}>
-          Bearbeiten
+          {i18n.t('edit')}
         </Button>
         <View style={{ width: theme.spacing.xs }} />
         <Button className="btn btnDelete" onPress={() => confirmDeleteArchive(item.id)}>
-          Löschen
+          {i18n.t('delete')}
         </Button>
       </View>
     </View>
@@ -306,7 +307,7 @@ export default function SettingsScreen() {
   if (loading) {
     return (
       <View style={[globalStyles.screenContainer, globalStyles.centeredScreen]}>
-        <Text>Lade Einstellungen…</Text>
+        <Text>{i18n.t('loadingSettings')}</Text>
       </View>
     );
   }
@@ -318,14 +319,14 @@ export default function SettingsScreen() {
       keyboardShouldPersistTaps="handled"
     >
       {/* Header / Website selector */}
-      <Text style={globalStyles.sectionTitle}>Einstellungen</Text>
+      <Text style={globalStyles.sectionTitle}>{i18n.t('settings')}</Text>
 
       {websites.length === 0 ? (
-        <Text style={globalStyles.emptyText}>Noch keine Webseiten angelegt.</Text>
+        <Text style={globalStyles.emptyText}>{i18n.t('noWebsites')}</Text>
       ) : (
         <AppDropdown
-          label="Webseite auswählen"
-          placeholder="Webseite wählen..."
+          label={i18n.t('selectWebsite')}
+          placeholder={i18n.t('chooseWebsite')}
           items={websites.map((w) => ({ id: w.id, label: w.name }))}
           selectedId={selectedWebsiteId}
           onSelectId={setSelectedWebsiteId}
@@ -334,18 +335,18 @@ export default function SettingsScreen() {
 
       <View style={globalStyles.buttonRow}>
         <Button className="btn btnAdd" onPress={openAddWebsiteModal}>
-          Neue Webseite
+          {i18n.t('newWebsite')}
         </Button>
         {selectedWebsite && (
           <>
             <View style={{ marginLeft: 12 }}>
               <Button className="btn btnEdit" onPress={() => openEditWebsiteModal(selectedWebsite)}>
-                Bearbeiten
+                {i18n.t('edit')}
               </Button>
             </View>
             <View style={{ marginLeft: 12 }}>
               <Button className="btn btnDelete" onPress={() => confirmDeleteWebsite(selectedWebsite)}>
-                Löschen
+                {i18n.t('delete')}
               </Button>
             </View>
           </>
@@ -354,10 +355,10 @@ export default function SettingsScreen() {
 
       {selectedWebsite && (
         <>
-          <Text style={[globalStyles.sectionTitle, globalStyles.section]}>News-Archive</Text>
+          <Text style={[globalStyles.sectionTitle, globalStyles.section]}>{i18n.t('newsArchives')}</Text>
 
           {selectedWebsite.archives.length === 0 ? (
-            <Text style={globalStyles.emptyText}>Noch keine Archive für diese Webseite angelegt.</Text>
+            <Text style={globalStyles.emptyText}>{i18n.t('noArchives')}</Text>
           ) : (
             <FlatList
               data={selectedWebsite.archives}
@@ -369,7 +370,7 @@ export default function SettingsScreen() {
 
           <View style={[globalStyles.buttonRow, { marginTop: 12 }]}>
             <Button className="btn btnAdd" onPress={openAddArchiveModal}>
-              Neues Archiv
+              {i18n.t('newArchive')}
             </Button>
           </View>
         </>
@@ -380,24 +381,24 @@ export default function SettingsScreen() {
         <View style={globalStyles.modalBackdrop}>
           <View style={globalStyles.modalContainer}>
             <Text style={globalStyles.modalTitle}>
-              {websiteModalMode === 'add' ? 'Neue Webseite hinzufügen' : 'Webseite bearbeiten'}
+              {websiteModalMode === 'add' ? i18n.t('addWebsite') : i18n.t('editWebsite')}
             </Text>
 
-            <Text style={globalStyles.modalLabel}>Webseiten-Name</Text>
+            <Text style={globalStyles.modalLabel}>{i18n.t('websiteName')}</Text>
             <TextInput
               style={globalStyles.modalInput}
-              placeholder="z.B. MeinBlog, Firmenname"
-              placeholderTextColor= 'rgba(255,255,255,0.4)'
+              placeholder={i18n.t('websiteNamePlaceholder')}
+              placeholderTextColor='rgba(255,255,255,0.4)'
               value={websiteModalName}
               onChangeText={setWebsiteModalName}
               autoCapitalize="none"
             />
 
-            <Text style={globalStyles.modalLabel}>Basis-URL</Text>
+            <Text style={globalStyles.modalLabel}>{i18n.t('baseUrl')}</Text>
             <TextInput
               style={globalStyles.modalInput}
-              placeholder="https://meine-domain.de"
-              placeholderTextColor= 'rgba(255,255,255,0.4)'
+              placeholder={i18n.t('baseUrlPlaceholder')}
+              placeholderTextColor='rgba(255,255,255,0.4)'
               value={websiteModalBaseUrl}
               onChangeText={setWebsiteModalBaseUrl}
               autoCapitalize="none"
@@ -407,11 +408,11 @@ export default function SettingsScreen() {
             <View style={globalStyles.modalButtonRow}>
               <View style={globalStyles.modalButtonRightGap}>
                 <Button className="btn btnCancel" onPress={() => setShowWebsiteModal(false)}>
-                  Abbrechen
+                  {i18n.t('cancel')}
                 </Button>
               </View>
               <Button className="btn btnAdd" onPress={handleSaveWebsite}>
-                {websiteModalMode === 'add' ? 'Anlegen' : 'Speichern'}
+                {websiteModalMode === 'add' ? i18n.t('create') : i18n.t('save')}
               </Button>
             </View>
           </View>
@@ -423,24 +424,24 @@ export default function SettingsScreen() {
         <View style={globalStyles.modalBackdrop}>
           <View style={globalStyles.modalContainer}>
             <Text style={globalStyles.modalTitle}>
-              {archiveModalMode === 'add' ? 'Neues Archiv anlegen' : 'Archiv bearbeiten'}
+              {archiveModalMode === 'add' ? i18n.t('addArchive') : i18n.t('editArchive')}
             </Text>
 
-            <Text style={globalStyles.label}>Archiv-Name</Text>
+            <Text style={globalStyles.label}>{i18n.t('archiveName')}</Text>
             <TextInput
               style={globalStyles.input}
-              placeholder="z.B. Startseite, Magazin, Blog"
-              placeholderTextColor= 'rgba(255,255,255,0.4)'
+              placeholder={i18n.t('archiveNamePlaceholder')}
+              placeholderTextColor='rgba(255,255,255,0.4)'
               value={archiveModalName}
               onChangeText={setArchiveModalName}
               autoCapitalize="none"
             />
 
-            <Text style={globalStyles.label}>Archiv-Token</Text>
+            <Text style={globalStyles.label}>{i18n.t('archiveToken')}</Text>
             <TextInput
               style={globalStyles.input}
-              placeholder="Token eintragen"
-              placeholderTextColor= 'rgba(255,255,255,0.4)'
+              placeholder={i18n.t('archiveTokenPlaceholder')}
+              placeholderTextColor='rgba(255,255,255,0.4)'
               value={archiveModalToken}
               onChangeText={setArchiveModalToken}
               autoCapitalize="none"
@@ -450,11 +451,11 @@ export default function SettingsScreen() {
             <View style={globalStyles.modalButtonRow}>
               <View style={globalStyles.modalButtonRightGap}>
                 <Button className="btn btnCancel" onPress={() => setShowArchiveModal(false)}>
-                  Abbrechen
+                  {i18n.t('cancel')}
                 </Button>
               </View>
               <Button className="btn btnAdd" onPress={handleSaveArchive}>
-                {archiveModalMode === 'add' ? 'Anlegen' : 'Speichern'}
+                {archiveModalMode === 'add' ? i18n.t('create') : i18n.t('save')}
               </Button>
             </View>
           </View>
