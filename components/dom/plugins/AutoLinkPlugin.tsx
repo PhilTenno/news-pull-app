@@ -58,9 +58,6 @@ const MATCHERS = [
   },
 ];
 
-/* --------------------------------------------------------------- */
-/* 4️⃣  Export                                               */
-/* --------------------------------------------------------------- */
 export default function AutoLinkPlugin() {
   return <LexicalAutoLinkPlugin matchers={MATCHERS} />;
 }
