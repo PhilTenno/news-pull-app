@@ -146,12 +146,15 @@ export default function LexicalDomEditor(props: LexicalDomEditorProps) {
       .editor-input[contenteditable="true"],
       .editor-inner [contenteditable],
       .editor-inner [contenteditable="true"] {
-        padding-block: 0 8px !important;
+        padding-block: 0;
         padding-inline: 12px 4px !important;
         font-family:'Roboto',sans-serif;
         font-weight:300;
         font-size:14px;
         color:#efefef;
+      }
+      .editor-input {
+        min-height:100vh;
       }
       .editor-placeholder {
         font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif !important;

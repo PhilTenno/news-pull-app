@@ -66,6 +66,7 @@
   "localDraftDeleted": "Lokaler Entwurf nach erfolgreichem Upload gelöscht.",
   "localDraftDeletedManual": "Lokaler Entwurf nach erfolgreichem Upload (manuelle Metadaten) gelöscht.",
   "errorDeletingDraft": "Fehler beim Löschen des Entwurfs:",
+  "success": "Veröffentlichung erfolgreich",
   "articlePublishedAndDeleted": "Artikel veröffentlicht und lokaler Entwurf gelöscht.",
   "sendError": "Fehler beim Senden",
   "uploadFailed": "Upload fehlgeschlagen. Serverantwort: ",

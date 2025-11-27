@@ -65,6 +65,7 @@
   "localDraftDeleted": "Local draft deleted after successful upload.",
   "localDraftDeletedManual": "Local draft deleted after successful upload (manual meta).",
   "errorDeletingDraft": "Error deleting draft:",
+  "success": "Success",
   "articlePublishedAndDeleted": "Article published and local draft deleted.",
   "sendError": "Error sending",
   "uploadFailed": "Upload failed. Server response: ",
