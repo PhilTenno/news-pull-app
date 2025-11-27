@@ -561,7 +561,7 @@ export default function ArticleScreen() {
       </View>
     );
   }
-
+  
   return (
     <ScrollView
       style={globalStyles.screenContainer}
@@ -663,7 +663,6 @@ export default function ArticleScreen() {
               dom={{ style: { ...editorContentFlatten, height: 250 } }}
             />
           </View>
-
           <View style={oneStyles.keywordsContainer}>
             <Text style={globalStyles.label}>{i18n.t('articleKeywords')}</Text>
             <TextInput

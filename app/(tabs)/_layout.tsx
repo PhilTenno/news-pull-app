@@ -37,10 +37,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          title: i18n.t('tabs.home'),
           tabBarIcon: ({ color, size }) => (
             <FontAwesome6 name="house" size={size} color={color} />
           ),
-          title: i18n.t('tabs.home'),
         }}
       />
       <Tabs.Screen
@@ -57,7 +57,7 @@ export default function TabsLayout() {
         options={{
           title: i18n.t('tabs.settings'),
           tabBarIcon: ({ color, size }) => (
-            <FontAwesome6 name="gear" size={size} color={color} />
+            <FontAwesome6 name="sliders" size={size} color={color} />
           ),
         }}
       />

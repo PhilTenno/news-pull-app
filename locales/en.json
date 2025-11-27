@@ -1,7 +1,7 @@
 {
   "tabs": {
     "home": "Home",
-    "articles": "Articles",
+    "articles": "News",
     "settings": "Settings"
   },
   "error": "Error",
@@ -82,8 +82,18 @@
   "articleTitle": "Article title",
   "article": "Article",
   "publishOn": "Publish on:",
+  "editorPlaceholder":"write your article...",
+  "editorParagraph":"Paragraph",
+  "editorHeadline1":"Headline 1",
+  "editorHeadline2":"Headline 2",
+  "editorHeadline3":"Headline 3",
+  "editorHeadline4":"Headline 4",
+  "editorHeadline5":"Headline 5",
+  "editorHeadline6":"Headline 6",
+  "sendMail": "send E-Mail to: %{email} ",
+  "gotoWebsite": "goto website: %{url}",
   "articleKeywords": "Article Keywords",
-  "keywordsPlaceholder": "e.g. Sports, Cycling, Gravel Bike",
+  "keywordsPlaceholder": "e.g. Sports, Cycling, Road Bike",
   "photo": "Photo",
   "replacePhoto": "Replace Photo",
   "imageDescription": "Short image description",

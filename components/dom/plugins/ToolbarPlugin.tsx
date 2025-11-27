@@ -1,6 +1,7 @@
 //components/dom/plugins/Toolbarplugin.tsx
 "use dom";
 
+import i18n from '@/utils/i18n';
 import { MaterialIcons } from "@expo/vector-icons"; // MaterialIcons verwenden
 import {
   INSERT_ORDERED_LIST_COMMAND,
@@ -340,17 +341,17 @@ export default function ToolbarPlugin() {
         style={{ paddingBlock:4,
           paddingInline:8,
           paddingInlineStart:10,
-          maxWidth:80,
+          maxWidth:90,
           borderColor:'#556070',
           color:'#efefef',
           backgroundColor:'rgba(255,255,255,0.1)'}}
       >
-        <option value="paragraph">Absatz</option>
-        <option value="h2">Überschrift 2</option>
-        <option value="h3">Überschrift 3</option>
-        <option value="h4">Überschrift 4</option>
-        <option value="h5">Überschrift 5</option>
-        <option value="h6">Überschrift 6</option>
+        <option value="paragraph">{i18n.t('editorParagraph')}</option>
+        <option value="h2">{i18n.t('editorHeadline2')}</option>
+        <option value="h3">{i18n.t('editorHeadline3')}</option>
+        <option value="h4">{i18n.t('editorHeadline4')}</option>
+        <option value="h5">{i18n.t('editorHeadline5')}</option>
+        <option value="h6">{i18n.t('editorHeadline6')}</option>
       </select>
 
       {/* Inline-Formatierung mittels MaterialIcons */}

@@ -1,8 +1,8 @@
 // components/dom/plugins/AutoLinkPlugin.tsx
 "use dom";
 
+import i18n from '@/utils/i18n';
 import { AutoLinkPlugin as LexicalAutoLinkPlugin } from "@lexical/react/LexicalAutoLinkPlugin";
-
 /* --------------------------------------------------------------- */
 /* 1️⃣  Regex für URLs                                            */
 /*    – mindestens ein Punkt im Host (Sub‑/Multi‑TLD)             */
@@ -35,7 +35,7 @@ const MATCHERS = [
         text: url,
         url,                                 // <a href="url">
         attributes: {
-          title: `open website: ${url}`
+          title: i18n.t('gotoWebsite', {url})
         },
       };
     }
@@ -49,7 +49,7 @@ const MATCHERS = [
         text: email,
         url: `mailto:${email}`,              // <a href="mailto:…">
         attributes: {
-          title: `send mail to ${email}`,
+          title: i18n.t('sendMail', {email}),
         },
       };
     }

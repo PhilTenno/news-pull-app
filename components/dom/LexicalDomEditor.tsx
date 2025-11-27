@@ -15,6 +15,7 @@ import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { $getRoot, type EditorState } from "lexical";
 import React, { useEffect, useRef } from "react";
 
+import i18n from '@/utils/i18n';
 import { AutoLinkNode, LinkNode } from "@lexical/link"; // <-- import both nodes
 import { ListItemNode, ListNode } from "@lexical/list";
 import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
@@ -22,6 +23,7 @@ import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { HeadingNode } from "@lexical/rich-text";
 import AutoLinkPlugin from "./plugins/AutoLinkPlugin";
 import ToolbarPlugin from "./plugins/ToolbarPlugin";
+
 
 export type LexicalDomEditorProps = {
   /** HTML‑String that represents the editor content */
@@ -38,7 +40,7 @@ export type LexicalDomEditorProps = {
   };
 };
 
-const placeholder = "Gib deinen Artikeltext ein…";
+const placeholder = i18n.t('editorPlaceholder');
 
 /* ------------------------------------------------------------------ */
 /* Lexical theme – the `underline` class is mapped to a CSS rule   */
