@@ -31,6 +31,7 @@
     "expo-router": "~6.0.14",
     "expo-splash-screen": "~31.0.10",
     "expo-status-bar": "~3.0.8",
+    "expo-updates": "~29.0.13",
     "expo-web-browser": "~15.0.9",
     "i18n-js": "^4.5.1",
     "lexical": "^0.38.2",

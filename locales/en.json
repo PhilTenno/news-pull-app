@@ -39,6 +39,7 @@
   "baseUrl": "Base URL",
   "baseUrlPlaceholder": "https://my-domain.com",
   "archiveName": "Archive Name",
+  "addArchive":"New Archive",
   "archiveNamePlaceholder": "e.g. Homepage, Magazine, Blog",
   "archiveToken": "Archive Token",
   "archiveTokenPlaceholder": "Enter token",

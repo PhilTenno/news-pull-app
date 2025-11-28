@@ -41,6 +41,7 @@
   "baseUrl": "Basis-URL",
   "baseUrlPlaceholder": "https://meine-domain.de",
   "archiveName": "Archiv-Name",
+  "addArchive":"Neues Archiv",
   "archiveNamePlaceholder": "z.B. Startseite, Magazin, Blog",
   "archiveToken": "Archiv-Token",
   "archiveTokenPlaceholder": "Token eintragen",
