@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -369,23 +370,32 @@ export default function ArticleScreen() {
       }
     }
   };
-
   const handlePhotoButtonPress = () => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title: draft.image ? i18n.t('replacePhoto') : i18n.t('addPhoto'),
-        options: [i18n.t('takePhoto'), i18n.t('chooseFromGallery'), i18n.t('cancel')],
-        cancelButtonIndex: 2,
-      },
-      buttonIndex => {
-        if (buttonIndex === 0) {
-          void pickImageFromCamera();
-        } else if (buttonIndex === 1) {
-          void pickImageFromLibrary();
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: draft.image ? i18n.t('replacePhoto') : i18n.t('addPhoto'),
+          options: [i18n.t('takePhoto'), i18n.t('chooseFromGallery'), i18n.t('cancel')],
+          cancelButtonIndex: 2,
+        },
+        buttonIndex => {
+          if (buttonIndex === 0) void pickImageFromCamera();
+          else if (buttonIndex === 1) void pickImageFromLibrary();
         }
-      }
-    );
+      );
+    } else {
+      Alert.alert(
+        draft.image ? i18n.t('replacePhoto') : i18n.t('addPhoto'),
+        undefined,
+        [
+          { text: i18n.t('takePhoto'), onPress: () => void pickImageFromCamera() },
+          { text: i18n.t('chooseFromGallery'), onPress: () => void pickImageFromLibrary() },
+          { text: i18n.t('cancel'), style: 'cancel' },
+        ]
+      );
+    }
   };
+
 
   const selectedWebsite = websites.find(w => w.id === selectedWebsiteId) ?? null;
   const archives: ArchiveConfig[] = selectedWebsite?.archives ?? [];
